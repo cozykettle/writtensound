@@ -1,0 +1,9 @@
+"""Qwen3-ASR and aligner knobs (SPIKE S4)."""
+
+from __future__ import annotations
+
+QWEN_TRANSFORMERS_MIN = "5.13"
+CHUNK_SECONDS = 240.0
+CHUNK_OVERLAP_SECONDS = 1.0
+MAX_NEW_TOKENS = 4096
+ALIGNER_WINDOW_SECONDS = 300.0

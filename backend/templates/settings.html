@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Settings — WrittenSound{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div>
+    <p class="eyebrow">The quiet controls</p>
+    <h1>Settings</h1>
+    <p class="lede">Defaults for new jobs, a Hugging Face token for gated voices, and the housekeeping that keeps the shelves tidy.</p>
+  </div>
+  <div class="page-actions">
+    <span class="pill pill-quiet">stored in {{ paths.config_dir }}</span>
+  </div>
+</section>
+
+<div class="settings-layout">
+  <section class="card token-card" id="token" aria-labelledby="token-title">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Access</p>
+        <h2 id="token-title">Hugging Face token</h2>
+      </div>
+      {% if masked_token %}<span class="pill pill-ok">token present</span>{% else %}<span class="pill pill-quiet">not set</span>{% endif %}
+    </div>
+    <p class="hint">Only pyannote diarization and other gated repos need this. The token is stored on this machine in <code>app-config.json</code> and is never shown again after saving.</p>
+    {% if not config.hf_token and masked_token %}
+    <p class="hint">A token is currently supplied by the <code>HF_TOKEN</code> environment variable.</p>
+    {% endif %}
+    <form id="token-form" class="inline-form" autocomplete="off">
+      <div class="field">
+        <label for="hf-token">Read token</label>
+        <input type="password" id="hf-token" name="hf_token" placeholder="{{ masked_token or 'hf_…' }}" autocomplete="new-password" spellcheck="false">
+        <p class="hint">Create one at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer">huggingface.co/settings/tokens</a>. Read access is enough.</p>
+      </div>
+      <div class="token-actions">
+        <button class="btn" type="button" data-action="save-token">Save token</button>
+        <label class="check check-small" id="clear-token-wrap" {% if not config.hf_token %}hidden{% endif %}><input type="checkbox" name="clear_token"><span>Remove stored token</span></label>
+      </div>
+    </form>
+  </section>
+
+  <section class="card settings-card" aria-labelledby="defaults-title">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">New jobs</p>
+        <h2 id="defaults-title">Default recipe</h2>
+      </div>
+      <span class="pill pill-quiet">seed for every queue entry</span>
+    </div>
+    <div id="settings-card-body">
+      {% include "partials/settings_form.html" %}
+    </div>
+  </section>
+
+  <section class="card housekeeping-card" aria-labelledby="housekeeping-title">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Housekeeping</p>
+        <h2 id="housekeeping-title">Retention &amp; staging</h2>
+      </div>
+      <span class="pill pill-quiet">gentle by default</span>
+    </div>
+    <form id="housekeeping-form" class="inline-form">
+      <div class="field">
+        <label for="keep_completed_jobs_days">Keep finished jobs for</label>
+        <div class="input-suffix">
+          <input type="number" id="keep_completed_jobs_days" name="keep_completed_jobs_days" min="0" max="3650" step="1" value="{{ config.keep_completed_jobs_days }}">
+          <span>days</span>
+        </div>
+        <p class="hint">0 turns automatic cleanup off. Outputs and logs go when the job goes.</p>
+      </div>
+      <div class="field">
+        <span class="label">Upload staging</span>
+        <label class="check"><input type="checkbox" name="cleanup_uploads" {{ 'checked' if config.cleanup_uploads else '' }}><span>Remove staging files once a job is created</span></label>
+        <p class="hint">The job keeps its own hard-linked copy, so this only reclaims a second path.</p>
+      </div>
+      <div class="form-actions">
+        <button class="btn" type="button" data-action="save-housekeeping">Save housekeeping</button>
+        <button class="btn btn-quiet" type="button" data-action="cleanup">Clean staging now</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card hardware-card" aria-labelledby="hardware-title">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">This machine</p>
+        <h2 id="hardware-title">Hardware</h2>
+      </div>
+      <button class="chip chip-quiet" type="button" data-action="refresh-hardware">Re-probe</button>
+    </div>
+    <dl class="meta-grid">
+      <div><dt>image</dt><dd>{{ hardware.image_variant }}</dd></div>
+      <div><dt>cpu</dt><dd>{{ hardware.cpu_cores }} cores</dd></div>
+      <div><dt>ram</dt><dd>{{ hardware.ram_gb }} GB</dd></div>
+      <div><dt>vulkan</dt><dd>{{ 'available' if hardware.vulkan_ok else 'unavailable' }}</dd></div>
+      <div><dt>cuda</dt><dd>{{ 'available' if hardware.cuda_ok else 'unavailable' }}</dd></div>
+    </dl>
+    <div class="device-list">
+      {% for slug, device in hardware.devices.items() %}
+      <span class="chip chip-ok"><span class="chip-led"></span>{{ device.platform }}</span>
+      {% endfor %}
+    </div>
+    {% if hardware.notes %}<ul class="notes">{% for note in hardware.notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
+  </section>
+
+  <section class="card about-card" aria-labelledby="paths-title">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">On disk</p>
+        <h2 id="paths-title">Paths &amp; version</h2>
+      </div>
+      <span class="pill pill-quiet">v{{ version }}</span>
+    </div>
+    <dl class="meta-grid">
+      <div><dt>data</dt><dd><code>{{ paths.root }}</code></dd></div>
+      <div><dt>jobs</dt><dd><code>{{ paths.jobs }}</code></dd></div>
+      <div><dt>models</dt><dd><code>{{ paths.models }}</code></dd></div>
+      <div><dt>HF cache</dt><dd><code>{{ paths.hf_cache }}</code></dd></div>
+      <div><dt>database</dt><dd><code>{{ paths.db_file }}</code></dd></div>
+      <div><dt>catalog</dt><dd><code>backend/db/catalog.yaml</code></dd></div>
+    </dl>
+    <p class="hint">Back up <code>{{ paths.root }}</code> and nothing else. The app itself is disposable.</p>
+  </section>
+</div>
+
+{% endblock %}
+
+{% block boot %}
+<script>
+  window.WS.page = "settings";
+  window.WS.settings = {{ settings_json|safe }};
+</script>
+{% endblock %}

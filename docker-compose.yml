@@ -1,0 +1,71 @@
+name: writtensound
+
+# Standard (CPU + Vulkan) is the default service. The CUDA service is opt-in
+# with `--profile cuda`; both use the same container name, so run one at a time.
+services:
+  writtensound:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final-standard
+      args:
+        WHISPERCPP_TAG: "${WHISPERCPP_TAG:-v1.9.5}"
+        NEMOSPEECH_TAG: "${NEMOSPEECH_TAG:-v0.2.0}"
+    image: writtensound:standard
+    container_name: writtensound
+    ports:
+      - "${WS_PORT:-8080}:${WS_PORT:-8080}"
+    volumes:
+      - "${WS_DATA_DIR:-./data}:/data"
+    environment:
+      APP_PASSWORD: "${APP_PASSWORD:-}"
+      HF_TOKEN: "${HF_TOKEN:-}"
+      PUID: "${PUID:-99}"
+      PGID: "${PGID:-100}"
+      WS_ENABLE_DEMO_ENGINE: "${WS_ENABLE_DEMO_ENGINE:-1}"
+      WS_LOG_LEVEL: "${WS_LOG_LEVEL:-INFO}"
+      WS_MAX_UPLOAD_BYTES: "${WS_MAX_UPLOAD_BYTES:-17179869184}"
+      WS_PORT: "${WS_PORT:-8080}"
+    # Intel/AMD Vulkan. Remove this block on a CPU-only host.
+    devices:
+      - /dev/dri:/dev/dri
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  writtensound-cuda:
+    profiles: ["cuda"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final-cuda
+      args:
+        WHISPERCPP_TAG: "${WHISPERCPP_TAG:-v1.9.5}"
+        NEMOSPEECH_TAG: "${NEMOSPEECH_TAG:-v0.2.0}"
+        CUDA_VERSION: "${CUDA_VERSION:-12.8.1}"
+        CUDA_ARCHITECTURES: "${CUDA_ARCHITECTURES:-75;80;86;89;90;120}"
+    image: writtensound:cuda
+    container_name: writtensound
+    ports:
+      - "${WS_PORT:-8080}:${WS_PORT:-8080}"
+    volumes:
+      - "${WS_DATA_DIR:-./data}:/data"
+    environment:
+      APP_PASSWORD: "${APP_PASSWORD:-}"
+      HF_TOKEN: "${HF_TOKEN:-}"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility,video"
+      NVIDIA_VISIBLE_DEVICES: "all"
+      PUID: "${PUID:-99}"
+      PGID: "${PGID:-100}"
+      WS_ENABLE_DEMO_ENGINE: "${WS_ENABLE_DEMO_ENGINE:-1}"
+      WS_LOG_LEVEL: "${WS_LOG_LEVEL:-INFO}"
+      WS_MAX_UPLOAD_BYTES: "${WS_MAX_UPLOAD_BYTES:-17179869184}"
+      WS_PORT: "${WS_PORT:-8080}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    stop_grace_period: 30s

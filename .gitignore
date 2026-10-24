@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.uv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Application data
+/data/
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Models / media / logs
+models/
+*.gguf
+*.bin
+*.pt
+*.safetensors
+logs/
+samples/*.wav
+!samples/jfk.wav
+
+# Local environment
+.env
+.env.local
+.DS_Store
+Thumbs.db

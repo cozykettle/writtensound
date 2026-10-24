@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#faf6ee">
+<title>{% block title %}WrittenSound{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css?v={{ asset_version }}">
+<script src="/static/htmx.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/htmx-ext-sse.js?v={{ asset_version }}" defer></script>
+<script src="/static/app.js?v={{ asset_version }}" defer></script>
+<script src="/static/upload.js?v={{ asset_version }}" defer></script>
+{% block head %}{% endblock %}
+</head>
+<body data-page="{{ active }}" data-max-upload="{{ max_upload_bytes|default(17179869184) }}">
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="WrittenSound home">
+    <span class="brand-dot" aria-hidden="true"></span><span>WrittenSound</span>
+  </a>
+  <div class="status-chips" id="status-chips" title="{{ hardware.notes|join(' · ') }}">
+    <span class="chip chip-ok" data-device="cpu"><span class="chip-led"></span>CPU {{ hardware.cpu_cores }}c</span>
+    <span class="chip {{ 'chip-ok' if hardware.vulkan_ok else 'chip-off' }}" data-device="vulkan"><span class="chip-led"></span>Vulkan {{ 'ok' if hardware.vulkan_ok else '—' }}</span>
+    <span class="chip {{ 'chip-ok' if hardware.cuda_ok else 'chip-off' }}" data-device="cuda"><span class="chip-led"></span>CUDA {{ 'ok' if hardware.cuda_ok else '—' }}</span>
+    <button class="chip chip-quiet" id="refresh-hardware" type="button" title="Re-probe hardware and devices">refresh</button>
+  </div>
+  <nav class="nav" aria-label="Main">
+    <a href="/" class="{{ 'active' if active == 'queue' else '' }}">Queue</a>
+    <a href="/engines" class="{{ 'active' if active == 'engines' else '' }}">Engines</a>
+    <a href="/settings" class="{{ 'active' if active == 'settings' else '' }}">Settings</a>
+  </nav>
+</header>
+
+<main class="shell" id="main">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <span>WrittenSound v{{ version }} — local words, quietly kept.</span>
+  <span><a href="/engines#about">About &amp; licenses</a> · <a href="https://github.com/ggml-org/whisper.cpp" rel="noreferrer">engines</a></span>
+</footer>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-scrim" data-close-modal></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <header class="modal-head">
+      <h2 id="modal-title">Edit job settings</h2>
+      <button type="button" class="icon-btn" data-close-modal aria-label="Close">×</button>
+    </header>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+  window.WS = window.WS || {};
+  window.WS.hardware = {{ hardware.model_dump(mode="json")|tojson }};
+  window.WS.version = {{ version|tojson }};
+</script>
+{% block boot %}{% endblock %}
+</body>
+</html>

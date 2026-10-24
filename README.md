@@ -1,0 +1,158 @@
+# WrittenSound
+
+Self-hosted, local-first speech-to-text with a noScribe-style transcript view, a serial job queue, and a multi-engine model catalog. WrittenSound never sends audio to a hosted service: uploads, inference, model files, and job outputs stay on the machine running the app.
+
+The project is currently a **working preview**. The demo engine, queue, upload flow, SSE updates, settings, renderers, and job output/download paths are implemented and covered by a hermetic test suite. Real-engine adapters and Docker engine builds exist, but the Phase A runtime verification described in [`docs/02`](docs/02-engines-and-models.md) is still required before they can be called production-ready.
+
+## What works today
+
+- Server-rendered queue with drag-and-drop or file-picker uploads, folder-relative paths, cancellation, retry, per-job settings, and output downloads.
+- A deterministic built-in **Demo** engine for a zero-download end-to-end run.
+- HTML, TXT, SRT, VTT, and merged JSON renderers, including speaker labels, interval and turn timestamps, word-level timing, and pause markers.
+- Engine catalog and model download UI for faster-whisper, whisper.cpp, NeMo-Speech.cpp, Qwen3-ASR, and pyannote.
+- SQLite job/config storage, a single serial worker, SSE queue events, hardware probing, retention cleanup, and optional HTTP Basic auth.
+- A standard Docker image target with CPU + Vulkan engine builds and a CUDA target with CUDA + Vulkan builds.
+
+## Quick start (demo, no model download)
+
+Requires Python 3.12 and [uv](https://docs.astral.sh/uv/). `ffmpeg`/`ffprobe` are recommended; WAV uploads work without them and show a warning.
+
+```bash
+uv sync
+uv run writtensound --host 127.0.0.1 --port 8080
+```
+
+Open <http://127.0.0.1:8080>, select a **Demo** model in the settings form, add a WAV file, and queue it. The demo engine produces a synthetic transcript and all five output formats.
+
+For the full local engine stack:
+
+```bash
+uv sync --extra engines
+```
+
+Real engine binaries (`whisper-cli`, `nemo-speech`) must be installed or pointed to with `WS_WHISPER_CLI` and `WS_NEMO_SPEECH`. Model weights are never baked into the repository; download them from the **Engines** page.
+
+## Docker
+
+Copy the example environment file and set a data path. The default data path is `./data`; on Unraid use an appdata or share path.
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+Open <http://localhost:8080>. The standard service builds the CPU + Vulkan image and passes through `/dev/dri` for Intel/AMD Vulkan on a Linux host. For a CPU-only host, or for Docker Desktop on Windows (which cannot pass a Linux `/dev/dri` render node into the container), use the CPU override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d --build
+```
+
+The app still runs, but Vulkan stays unavailable. GPU/Vulkan acceleration requires a Linux/Unraid host with `/dev/dri`; it is not available through Docker Desktop on Windows.
+
+CUDA hosts need the NVIDIA Container Toolkit. Docker Desktop on Windows can also expose an NVIDIA GPU through its WSL2 backend; verify that Docker sees it with:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu24.04 nvidia-smi
+```
+
+Stop the standard service first because both services use the same container name:
+
+```bash
+docker compose down
+docker compose --profile cuda up -d --build writtensound-cuda
+```
+
+The CUDA image contains both CUDA and Vulkan engine builds. The standard image does not expose CUDA devices. The CUDA image is not prebuilt in this preview, so this command compiles it locally and may take a long time. On a Windows laptop with a 4 GB GPU such as a T600, use smaller or quantized models; large models and simultaneous ASR plus diarization may exhaust VRAM.
+
+For a local build targeting one GPU, set that GPU's CUDA architecture to avoid compiling six fatbin variants. A T600 is `75`:
+
+```powershell
+$env:CUDA_ARCHITECTURES = "75"
+docker compose --profile cuda up -d --build writtensound-cuda
+```
+
+The resulting image only contains kernels for the selected architecture; use the default list for a redistributable release image.
+
+### Image targets
+
+The Dockerfile builds two explicit targets from one file:
+
+| target | image | use |
+|---|---|---|
+| `final-standard` | `writtensound:standard` | CPU + Vulkan (Intel Arc A380, AMD, CPU-only) |
+| `final-cuda` | `writtensound:cuda` | NVIDIA CUDA + Vulkan |
+
+```bash
+docker build --target final-standard -t writtensound:standard .
+docker build --target final-cuda -t writtensound:cuda .
+```
+
+Engine source tags are pinned in [`docker-build-args.env`](docker-build-args.env). Models are downloaded at runtime into `/data/models`.
+
+### Verification status
+
+As of 2026-10-23, the `final-standard` image was built on Docker 29.9.2 / Linux x86_64 (3.28 GB), reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The container started as UID/GID 99/100, reached `healthy`, and completed an uploaded WAV through the demo engine with HTML, TXT, SRT, VTT, JSON, and log outputs. `uv run ruff check .`, `uv run mypy backend`, and the 33 non-GPU tests pass. A CUDA target build was attempted; its Python layer installed and asserted `torch 2.9.1+cu128`, but the long nvcc compilation of the CUDA+Vulkan engine stages was stopped on this CPU-only host, so no `writtensound:cuda` image is claimed. See [`docs/process-notes.md`](docs/process-notes.md) for the exact record.
+
+### Security
+
+`APP_PASSWORD` is unset by default, which leaves the app open to anyone who can reach the port. Set it before exposing the container beyond a trusted network. The health endpoint remains unauthenticated so container healthchecks work.
+
+## Configuration
+
+All settings are optional. Docker variables can be placed in `.env`; local runs can use the same environment variables.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `WS_DATA_DIR` | `./data` | Root for config, jobs, staging, models, and the SQLite database |
+| `WS_PORT` | `8080` | HTTP port and default console port |
+| `APP_PASSWORD` | empty | Optional HTTP Basic password for all routes except health |
+| `HF_TOKEN` | empty | Hugging Face token fallback for gated model downloads |
+| `HF_HOME` | `<data>/models/hf-cache` | Hugging Face cache location |
+| `WS_LOG_LEVEL` | `INFO` | Python/uvicorn log level |
+| `WS_MAX_UPLOAD_BYTES` | `17179869184` (16 GiB) | Upload size ceiling |
+| `WS_ENABLE_DEMO_ENGINE` | `1` | Set to `0` to hide the demo engine |
+| `WS_WHISPER_CLI` | empty | Override the `whisper-cli` executable path |
+| `WS_NEMO_SPEECH` | empty | Override the `nemo-speech` executable path |
+| `WS_DISABLE_HW_PROBE` | `0` | Skip the startup hardware probe (tests/diagnostics) |
+
+The Hugging Face token can also be saved from the Settings page. A token saved there takes precedence over `HF_TOKEN`.
+
+## Development
+
+```bash
+uv sync --extra dev
+uv run ruff check .
+uv run mypy backend
+uv run pytest -m "not gpu"
+```
+
+The test suite is hermetic and uses temporary data directories plus the demo engine. GPU or live-engine tests are opt-in with the `gpu` marker. See [`docs/07-development-guide.md`](docs/07-development-guide.md) for module responsibilities and the phase plan.
+
+## Project layout
+
+```text
+backend/
+  app.py            FastAPI factory and startup wiring
+  runner.py         serial job runner
+  jobs.py           settings, validation, job serialization
+  engines/          one adapter + args module per engine
+  pipeline/         merge, pause, prep, and alignment stages
+  renderers/        HTML/TXT/SRT/VTT/JSON output
+  routes/           pages, partials, and JSON API
+  templates/        Jinja2 server-rendered UI
+  static/           CSS and vanilla JS (no build step)
+docs/               specifications and process notes
+tests/              hermetic unit/contract tests
+unraid/             Unraid container template
+```
+
+## Known limitations
+
+- **Phase A is incomplete.** whisper.cpp and NeMo-Speech.cpp flags were checked against their pinned upstream sources, but their JSON output schemas and GPU behavior have not been exercised against a local runtime in this environment. The aligner intentionally fails loudly until verified. No engine silently falls back to another device.
+- Qwen3-ASR and pyannote adapters are structurally present but also require Phase A output verification and model weights.
+- The standard Docker image was built and smoke-tested as part of this preview; see [`docs/process-notes.md`](docs/process-notes.md) for the exact verification record. A CUDA target build was started and its cu128 Python layer completed, but CUDA+Vulkan engine compilation did not finish in the available build window. CUDA hardware/output and model-weight inference were not available in the verification environment.
+- Model download actions are not exercised by the hermetic test suite, and gated pyannote models require accepting their Hugging Face terms.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Engine binaries and model weights keep their own upstream licenses; the Engines page lists them.

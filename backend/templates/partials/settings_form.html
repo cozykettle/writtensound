@@ -1,0 +1,216 @@
+{# The one settings fragment used by the queue, the defaults page and the edit modal. #}
+<form id="{{ form_id }}" class="settings-form" data-mode="{{ mode }}" data-job-id="{{ job_id or '' }}"
+      hx-get="/partials/settings-form"
+      hx-trigger="change delay:180ms"
+      hx-target="{{ '#modal-body' if mode == 'job' else '#settings-card-body' }}"
+      hx-swap="innerHTML">
+  <input type="hidden" name="mode" value="{{ mode }}">
+  {% if job_id %}<input type="hidden" name="job_id" value="{{ job_id }}">{% endif %}
+  <input type="hidden" name="word_timestamps_present" value="1">
+  <input type="hidden" name="mark_pauses_present" value="1">
+  <input type="hidden" name="verbatim_present" value="1">
+  <input type="hidden" name="formats_present" value="1">
+
+  {% if warnings %}
+  <div class="warnings" role="status">
+    <span class="warnings-mark" aria-hidden="true">!</span>
+    <ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <div class="settings-grid">
+    <div class="field field-wide">
+      <label for="asr_model_id">Model</label>
+      <select name="asr_model_id" id="asr_model_id">
+        {% for eng in catalog.visible_engines %}
+          {% set asr_models = eng.models_for('asr') %}
+          {% if asr_models %}
+          <optgroup label="{{ eng.name }}{% if not engine_available.get(eng.key, true) %} — runtime not installed{% endif %}">
+            {% for m in asr_models %}
+            {% set st = model_state_by_id.get(m.id, {}) %}
+            <option value="{{ m.id }}" {{ 'selected' if m.id == settings.asr_model_id else '' }}>
+              {{ m.name }} · {{ m.size_label }}{% if m.word_ts == 'native' %} · words+{% elif m.word_ts == 'aligner' %} · aligner{% endif %}{% if m.english_only %} · EN only{% endif %}{% if st.status != 'ready' %} · not installed{% endif %}
+            </option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <p class="hint">
+        {{ engine.runtime }} · {{ engine.notes }}
+        {% if model.word_ts == 'aligner' and not aligner_ready %}
+        <a href="/engines#engine-qwen3-aligner">Install the Qwen3 ForcedAligner</a> for word timing.
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="field">
+      <span class="label">Device</span>
+      <div class="segmented" role="radiogroup" aria-label="Device">
+        {% for slug, label in [('auto', 'Auto'), ('cpu', 'CPU'), ('cuda', 'CUDA'), ('vulkan', 'Vulkan')] %}
+          {% set supported = slug == 'auto' or (slug in engine.devices and slug in available_devices) %}
+          {% set reason = '' %}
+          {% if slug != 'auto' and slug not in engine.devices %}{% set reason = engine.name ~ ' has no ' ~ label ~ ' backend' %}{% elif slug != 'auto' and slug not in available_devices %}{% set reason = label ~ ' is not available in this environment' %}{% endif %}
+          <label class="seg {{ 'is-disabled' if not supported else '' }}" title="{{ reason or 'Follow the engine preferred available device' }}">
+            <input type="radio" name="device" value="{{ slug }}" {{ 'checked' if settings.device.value == slug else '' }} {{ 'disabled' if not supported else '' }}>
+            <span>{{ label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="hint">
+        {% if settings.device.value == 'auto' %}Resolves to {{ auto_device_hint }} at start.
+        {% else %}Explicit device; a failure will not silently retry on CPU.{% endif %}
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="language">Language</label>
+      <select name="language" id="language">
+        {% if model.language_auto %}
+          <option value="auto" {{ 'selected' if settings.language in ['auto', ''] else '' }}>Auto-detect</option>
+        {% elif settings.language in ['auto', ''] %}
+          <option value="auto" selected disabled>Auto not available for this model</option>
+        {% endif %}
+        {% for code in language_options %}
+          {% if code != 'auto' %}
+          <option value="{{ code }}" {{ 'selected' if settings.language == code else '' }}>{{ code }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <p class="hint">{{ model.languages }}{% if model.english_only %} · English only{% endif %}</p>
+    </div>
+
+    <div class="field field-wide">
+      <span class="label">Diarization</span>
+      <div class="segmented" role="radiogroup" aria-label="Diarization">
+        {% for slug, label in [('off', 'Off'), ('nemo', 'Nemotron'), ('pyannote', 'pyannote')] %}
+        <label class="seg">
+          <input type="radio" name="diar" value="{{ slug }}" {{ 'checked' if settings.diar.value == slug else '' }}>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% if settings.diar.value != 'off' %}
+        <div class="subgrid">
+          <div class="field">
+            <label for="diar_model_id">Diarization model</label>
+            <select name="diar_model_id" id="diar_model_id">
+              {% for m in diar_models %}
+              <option value="{{ m.id }}" {{ 'selected' if m.id == settings.diar_model_id else '' }}>{{ m.name }}{% if m.max_speakers %} · up to {{ m.max_speakers }} speakers{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="speaker_count">Speakers</label>
+            <select name="speaker_count" id="speaker_count">
+              <option value="auto" {{ 'selected' if settings.speaker_count == 'auto' else '' }}>Auto</option>
+              {% for n in range(2, 9) %}
+              <option value="{{ n }}" {{ 'selected' if settings.speaker_count == n else '' }} {{ 'disabled' if n > speaker_max else '' }} title="{{ 'capped by the selected diarizer' if n > speaker_max else '' }}">{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        {% if diar_models and model_state_by_id.get(settings.diar_model_id, {}).status != 'ready' %}
+        <p class="hint hint-warn">The diarizer will be downloaded when the job reaches that stage.</p>
+        {% endif %}
+      {% else %}
+      <p class="hint">No speaker labels. The transcript stays in the order it was spoken.</p>
+      {% endif %}
+    </div>
+
+    <div class="field field-wide">
+      <span class="label">Timestamps &amp; text</span>
+      <div class="subgrid subgrid-3">
+        <div class="field">
+          <label for="timestamps_mode">Timestamp style</label>
+          <select name="timestamps_mode" id="timestamps_mode">
+            <option value="none" {{ 'selected' if settings.timestamps_mode.value == 'none' else '' }}>None (raw text)</option>
+            <option value="interval" {{ 'selected' if settings.timestamps_mode.value == 'interval' else '' }}>Every N seconds + turns</option>
+            <option value="turns" {{ 'selected' if settings.timestamps_mode.value == 'turns' else '' }}>Turn starts only</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="interval_s">Interval (seconds)</label>
+          <input type="number" id="interval_s" name="interval_s" min="10" max="3600" step="1" value="{{ settings.interval_s }}" {{ 'disabled' if settings.timestamps_mode.value != 'interval' else '' }}>
+        </div>
+        <div class="field">
+          <label for="pause_min_s">Pause threshold (s)</label>
+          <input type="number" id="pause_min_s" name="pause_min_s" min="0.5" max="10" step="0.5" value="{{ settings.pause_min_s }}" {{ 'disabled' if not word_ts_available else '' }}>
+        </div>
+      </div>
+      <div class="checks">
+        <label class="check {{ 'is-disabled' if not word_ts_available else '' }}" title="{{ '' if word_ts_available else 'This model has no word timing; install an aligner or pick a whisper model' }}">
+          <input type="checkbox" name="word_timestamps" {{ 'checked' if settings.word_timestamps else '' }} {{ 'disabled' if not word_ts_available else '' }}>
+          <span>Word-level timestamps</span>
+        </label>
+        <label class="check {{ 'is-disabled' if not word_ts_available else '' }}" title="{{ '' if word_ts_available else 'Pause marking needs word-level timing' }}">
+          <input type="checkbox" name="mark_pauses" {{ 'checked' if settings.mark_pauses else '' }} {{ 'disabled' if not word_ts_available else '' }}>
+          <span>Mark pauses <span class="muted">(one dot per second)</span></span>
+        </label>
+        <label class="check {{ 'is-disabled' if not verbatim_available else '' }}" title="{{ '' if verbatim_available else 'Verbatim fillers are a whisper-family feature' }}">
+          <input type="checkbox" name="verbatim" {{ 'checked' if settings.verbatim else '' }} {{ 'disabled' if not verbatim_available else '' }}>
+          <span>Verbatim <span class="muted">(keep um / uh)</span></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="field field-wide">
+      <span class="label">Clip range</span>
+      <div class="subgrid">
+        <div class="field">
+          <label for="start_at">Start <span class="muted">hh:mm:ss</span></label>
+          <input type="text" id="start_at" name="start_at" value="{{ settings.start_at or '' }}" placeholder="00:00:00" pattern="^\d{1,2}:\d{2}:\d{2}$">
+        </div>
+        <div class="field">
+          <label for="end_at">Stop <span class="muted">hh:mm:ss</span></label>
+          <input type="text" id="end_at" name="end_at" value="{{ settings.end_at or '' }}" placeholder="—" pattern="^\d{1,2}:\d{2}:\d{2}$">
+        </div>
+      </div>
+      <p class="hint">Leave both blank to transcribe the whole recording.</p>
+    </div>
+
+    <div class="field field-wide">
+      <span class="label">Formats</span>
+      <div class="checks">
+        {% set outmap = {'html': settings.output.html, 'txt': settings.output.txt, 'srt': settings.output.srt, 'vtt': settings.output.vtt, 'json': settings.output.json} %}
+        {% for key, label in [('html', 'HTML'), ('txt', 'TXT'), ('srt', 'SRT'), ('vtt', 'VTT'), ('json', 'JSON')] %}
+        {% set caption_format = key in ['srt', 'vtt'] %}
+        {% set enabled = (not caption_format) or srt_available %}
+        <label class="check check-pill {{ 'is-disabled' if not enabled else '' }}" title="{{ '' if enabled else 'Captions need a timestamp mode' }}">
+          <input type="checkbox" name="formats" value="{{ key }}" {{ 'checked' if outmap[key] else '' }} {{ 'disabled' if not enabled else '' }}>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <details class="field field-wide advanced">
+      <summary>Advanced</summary>
+      <div class="subgrid">
+        <div class="field">
+          <label for="out_basename">Output basename</label>
+          <input type="text" id="out_basename" name="out_basename" value="{{ settings.out_basename or '' }}" placeholder="{{ settings.asr_model_id }}">
+        </div>
+        <div class="field">
+          <span class="label">Engine state</span>
+          <p class="hint">{{ engine.name }} · {{ engine.runtime }} · {{ 'runtime present' if runtime_available else 'runtime missing' }}<br>
+            {{ 'model ready' if model_state_by_id.get(model.id, {}).status == 'ready' else 'model not installed' }}
+          </p>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="form-actions">
+    {% if mode == 'job' %}
+      <button type="button" class="btn" data-action="job-save" data-job-id="{{ job_id }}">Save changes</button>
+      <button type="button" class="btn btn-quiet" data-close-modal>Cancel</button>
+    {% elif mode == 'defaults' %}
+      <button type="button" class="btn" data-action="save-defaults">Save defaults</button>
+      <span class="hint">These become the seed for every new job.</span>
+    {% else %}
+      <button type="button" class="btn" data-action="save-defaults">Save as my defaults</button>
+      <span class="hint">The card above is used for files you add next.</span>
+    {% endif %}
+  </div>
+</form>

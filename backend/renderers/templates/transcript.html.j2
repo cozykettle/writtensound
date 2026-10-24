@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} — WrittenSound transcript</title>
+<style>
+  :root {
+    --ink: #1a1714;
+    --muted: #6f675e;
+    --paper: #fbf7f0;
+    --rule: #e4d9c8;
+    --accent: #b45309;
+    --pause: #a89e91;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 56px 28px 72px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 22px; margin-bottom: 34px; }
+  .eyebrow {
+    font: 700 11px/1.2 ui-monospace, "Cascadia Code", Consolas, monospace;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.08; margin: 0 0 18px; letter-spacing: -.02em; }
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px 24px;
+    margin: 0;
+    font: 12px/1.4 ui-monospace, "Cascadia Code", Consolas, monospace;
+    color: var(--muted);
+  }
+  .meta div { display: flex; gap: 8px; }
+  .meta dt { color: var(--muted); }
+  .meta dd { margin: 0; color: var(--ink); }
+  .transcript { counter-reset: line; }
+  h3 {
+    font: 700 13px/1.3 ui-monospace, "Cascadia Code", Consolas, monospace;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 34px 0 8px;
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+  }
+  h3 .ts { color: var(--muted); font-weight: 400; letter-spacing: .02em; text-transform: none; }
+  p {
+    position: relative;
+    margin: 0 0 12px;
+    padding-left: 46px;
+    counter-increment: line;
+    hyphens: auto;
+  }
+  p::before {
+    content: counter(line);
+    position: absolute;
+    left: 0;
+    top: .28em;
+    width: 28px;
+    text-align: right;
+    font: 11px/1.4 ui-monospace, "Cascadia Code", Consolas, monospace;
+    color: #b6aa9a;
+  }
+  .ts {
+    font: 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace;
+    color: var(--accent);
+    margin-right: 7px;
+    white-space: nowrap;
+  }
+  .pause { color: var(--pause); font: 12px/1 ui-monospace, "Cascadia Code", Consolas, monospace; margin-left: 6px; }
+  .overlap { border-bottom: 1px dotted var(--accent); }
+  footer {
+    margin-top: 54px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font: 11px/1.5 ui-monospace, "Cascadia Code", Consolas, monospace;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  @media print {
+    body { background: #fff; }
+    main { padding: 0; }
+    h3 { break-after: avoid; }
+    p { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">WrittenSound transcript</p>
+    <h1>{{ title }}</h1>
+    <dl class="meta">
+      <div><dt>date</dt><dd>{{ generated_on }}</dd></div>
+      <div><dt>duration</dt><dd>{{ hhmmss(transcription.duration_s) }}</dd></div>
+      <div><dt>engine</dt><dd>{{ transcription.engine }} / {{ transcription.model_id }}</dd></div>
+      <div><dt>device</dt><dd>{{ transcription.device }}{% if transcription.compute %} · {{ transcription.compute }}{% endif %}</dd></div>
+      <div><dt>language</dt><dd>{{ transcription.language or "auto" }}</dd></div>
+      {% if diar %}<div><dt>diarizer</dt><dd>{{ diar.engine }} / {{ diar.model_id }}</dd></div>{% endif %}
+      <div><dt>speakers</dt><dd>{% if diar %}{{ diar.turns | map(attribute="speaker") | unique | list | length }}{% else %}not separated{% endif %}</dd></div>
+    </dl>
+  </header>
+
+  <section class="transcript">
+  {% for turn in turns %}
+    {% if turn.speaker is not none %}
+    <h3>Speaker {{ turn.speaker + 1 }}{% if turn.timestamp %} <span class="ts">[{{ turn.timestamp }}]</span>{% endif %}</h3>
+    {% elif turn.timestamp %}
+    <h3>Transcript <span class="ts">[{{ turn.timestamp }}]</span></h3>
+    {% endif %}
+    {% for paragraph in turn.paragraphs %}
+    <p>{% if paragraph.timestamp and (turn.speaker is none or paragraph.timestamp != turn.timestamp) %}<span class="ts">[{{ paragraph.timestamp }}]</span>{% endif %}{% if paragraph.overlap %}<span class="overlap">{{ paragraph.text }}</span>{% else %}{{ paragraph.text }}{% endif %}{% if paragraph.pause %} <span class="pause">{{ paragraph.pause }}</span>{% endif %}</p>
+    {% endfor %}
+  {% endfor %}
+  </section>
+
+  <footer>
+    <span>{{ resolved.get("asr_model", transcription.model_id) }} · {{ resolved.get("device", transcription.device) }}{% if resolved.get("compute") and resolved.get("compute") != resolved.get("device") %} · {{ resolved.get("compute") }}{% endif %}</span>
+    <span>Rendered by WrittenSound v{{ version }} — your words stayed home.</span>
+  </footer>
+</main>
+</body>
+</html>

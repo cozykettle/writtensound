@@ -1,0 +1,1 @@
+"""pyannote.audio diarization adapter."""

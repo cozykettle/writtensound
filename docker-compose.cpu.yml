@@ -1,0 +1,14 @@
+# CPU-only / Docker Desktop override.
+#
+# Docker Desktop on Windows cannot pass a Linux /dev/dri device into the
+# container, and hosts without an Intel/AMD render node have no such device.
+# Remove the standard service's device mapping without editing the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d --build
+#
+# GPU/Vulkan acceleration still requires a Linux host with /dev/dri (the
+# primary Unraid deployment). This override changes only device passthrough;
+# the image itself is unchanged.
+services:
+  writtensound:
+    devices: !reset []

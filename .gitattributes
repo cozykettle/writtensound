@@ -1,0 +1,23 @@
+# Keep shell scripts, Docker inputs, and text assets LF in the repository so
+# Linux/Unraid checkouts and Docker builds see the same bytes as Windows.
+* text=auto eol=lf
+
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.j2 text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.xml text eol=lf
+*.env text eol=lf
+*.example text eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

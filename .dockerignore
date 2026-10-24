@@ -1,0 +1,28 @@
+# Build context excludes local state, caches, and media. Engine sources and
+# model weights are never copied from the host.
+.git
+.github
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+data
+models
+logs
+samples
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.mp4
+*.mkv
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example

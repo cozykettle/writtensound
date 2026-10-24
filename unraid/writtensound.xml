@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>WrittenSound</Name>
+  <Repository>writtensound:standard</Repository>
+  <Registry/>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>Local-first speech-to-text with a noScribe-style transcript view, a serial job queue, and on-demand model downloads. Build the standard image from the repository first: docker build --target final-standard -t writtensound:standard .</Overview>
+  <Category>MediaApp:Video Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL/>
+  <Icon/>
+  <ExtraParams>--device=/dev/dri:/dev/dri</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Vulkan-capable /dev/dri device for Intel/AMD GPU use. Remove ExtraParams for CPU-only.</Requires>
+  <Config Name="Web UI port" Target="8080" Default="8080" Mode="tcp" Description="Host port for the WrittenSound UI." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="App data" Target="/data" Default="/mnt/user/appdata/writtensound" Mode="rw" Description="Configuration, SQLite database, jobs, models, and Hugging Face cache." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/writtensound</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="Unraid user ID; files under /data are owned by this ID." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Unraid group ID." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="App password" Target="APP_PASSWORD" Default="" Mode="" Description="Optional HTTP Basic password. Strongly recommended if the UI is reachable from other hosts." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Hugging Face token" Target="HF_TOKEN" Default="" Mode="" Description="Optional token for gated model downloads; can also be saved in the UI." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Log level" Target="WS_LOG_LEVEL" Default="INFO" Mode="" Description="DEBUG, INFO, WARNING, or ERROR." Type="Variable" Display="advanced" Required="false" Mask="false">INFO</Config>
+  <Config Name="Demo engine" Target="WS_ENABLE_DEMO_ENGINE" Default="1" Mode="" Description="Set to 0 to hide the deterministic demo engine." Type="Variable" Display="advanced" Required="false" Mask="false">1</Config>
+  <Config Name="Max upload bytes" Target="WS_MAX_UPLOAD_BYTES" Default="17179869184" Mode="" Description="Upload ceiling in bytes (default 16 GiB)." Type="Variable" Display="advanced" Required="false" Mask="false">17179869184</Config>
+</Container>

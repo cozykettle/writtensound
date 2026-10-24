@@ -1,0 +1,323 @@
+# WrittenSound model catalog — normative companion to docs/02-engines-and-models.md §2.
+# Every engine flag outside this file lives in backend/engines/<key>/args.py.
+version: 1
+schema_version: 1
+
+engines:
+  - key: faster-whisper
+    name: faster-whisper
+    runtime: CTranslate2
+    kind: asr
+    devices: [cpu, cuda]
+    probe:
+      modules: [faster_whisper, ctranslate2]
+    license: MIT
+    notes: Fastest CPU/CUDA Whisper path. No Vulkan backend.
+    models:
+      - id: fw-large-v3
+        name: Whisper large-v3
+        role: asr
+        repo: Systran/faster-whisper-large-v3
+        fetch: { kind: snapshot, allow_patterns: ["*.bin", "*.json", "*.txt", "*.model"] }
+        size_bytes: 3090000000
+        size_label: 3.09 GB
+        languages: 99 multilingual
+        language_auto: true
+        word_ts: native
+        notes: Quality ceiling. ~4.5 GB VRAM fp16, ~2.9 GB int8.
+      - id: fw-large-v3-turbo
+        name: Whisper large-v3-turbo
+        role: asr
+        repo: Purfview/faster-whisper-large-v3-turbo-ct2
+        fetch: { kind: snapshot, allow_patterns: ["*.bin", "*.json", "*.txt", "*.model"] }
+        size_bytes: 1620000000
+        size_label: 1.62 GB
+        languages: 99 multilingual
+        language_auto: true
+        word_ts: native
+        notes: Decoder pruned to 4 layers — fast, near-v3 quality.
+      - id: fw-distil-large-v3.5
+        name: Distil large-v3.5
+        role: asr
+        repo: distil-whisper/distil-large-v3.5-ct2
+        fetch: { kind: snapshot, allow_patterns: ["*.bin", "*.json", "*.txt", "*.model"] }
+        size_bytes: 1510000000
+        size_label: 1.51 GB
+        languages: English only
+        language_auto: true
+        english_only: true
+        word_ts: native
+        notes: Best English speed/quality tradeoff; added in faster-whisper 1.2.0.
+      - id: fw-small
+        name: Whisper small
+        role: asr
+        repo: Systran/faster-whisper-small
+        fetch: { kind: snapshot, allow_patterns: ["*.bin", "*.json", "*.txt", "*.model"] }
+        size_bytes: 480000000
+        size_label: 0.48 GB
+        languages: 99 multilingual
+        language_auto: true
+        word_ts: native
+        notes: Fallback for very weak hosts.
+
+  - key: whisper.cpp
+    name: whisper.cpp
+    runtime: whisper-cli (GGML)
+    kind: asr
+    devices: [cpu, vulkan, cuda]
+    probe:
+      executable: whisper-cli
+      executable_env: WS_WHISPER_CLI
+    license: MIT
+    notes: CPU/Vulkan/CUDA whisper family. Default A380 path.
+    models:
+      - id: wcpp-large-v3-turbo-f16
+        name: Large v3 turbo f16
+        role: asr
+        repo: ggerganov/whisper.cpp
+        fetch: { kind: single, filename: ggml-large-v3-turbo.bin }
+        size_bytes: 1620000000
+        size_label: 1.62 GB
+        languages: 99 multilingual
+        language_auto: true
+        word_ts: native
+        notes: Best Vulkan quality, VRAM-heavy.
+      - id: wcpp-large-v3-turbo-q8_0
+        name: Large v3 turbo q8_0
+        role: asr
+        repo: ggerganov/whisper.cpp
+        fetch: { kind: single, filename: ggml-large-v3-turbo-q8_0.bin }
+        size_bytes: 874000000
+        size_label: 874 MB
+        languages: 99 multilingual
+        language_auto: true
+        word_ts: native
+        default: true
+        notes: Default recommendation on Intel Arc A380.
+      - id: wcpp-large-v3-turbo-q5_0
+        name: Large v3 turbo q5_0
+        role: asr
+        repo: ggerganov/whisper.cpp
+        fetch: { kind: single, filename: ggml-large-v3-turbo-q5_0.bin }
+        size_bytes: 574000000
+        size_label: 574 MB
+        languages: 99 multilingual
+        language_auto: true
+        word_ts: native
+        notes: Weakest A380, cheapest.
+      - id: wcpp-large-v3-q5_0
+        name: Large v3 q5_0
+        role: asr
+        repo: ggerganov/whisper.cpp
+        fetch: { kind: single, filename: ggml-large-v3-q5_0.bin }
+        size_bytes: 1080000000
+        size_label: 1.08 GB
+        languages: 99 multilingual
+        language_auto: true
+        word_ts: native
+        notes: Max quality quantized.
+      - id: wcpp-distil-large-v3
+        name: Distil large-v3
+        role: asr
+        repo: distil-whisper/distil-large-v3-ggml
+        fetch: { kind: single, filename: ggml-distil-large-v3.bin }
+        size_bytes: 800000000
+        size_label: 0.8 GB
+        languages: English only
+        language_auto: true
+        english_only: true
+        word_ts: native
+        notes: English only, ~5x faster than large-v3.
+
+  - key: nemo-speech
+    name: NeMo-Speech.cpp
+    runtime: NeMo-Speech.cpp (GGUF)
+    kind: asr
+    devices: [cpu, vulkan, cuda]
+    probe:
+      executable: nemo-speech
+      executable_env: WS_NEMO_SPEECH
+    license: Apache-2.0
+    notes: Nemotron ASR and Sortformer/Nemotron-3 diarization on Vulkan, CUDA or CPU.
+    models:
+      - id: nemo-nemotron-3.5-asr
+        name: Nemotron 3.5 ASR 0.6B
+        role: asr
+        repo: nvidia/nemotron-3.5-asr-streaming-0.6b
+        fetch: { kind: snapshot, allow_patterns: ["*.gguf"] }
+        size_bytes: 742000000
+        size_label: 742 MB
+        languages: 40 locales
+        language_auto: true
+        word_ts: aligner
+        notes: Cache-aware FastConformer-RNNT. Native punctuation and capitalization.
+      - id: nemo-nemotron-en
+        name: Nemotron Streaming EN 0.6B
+        role: asr
+        repo: nvidia/nemotron-speech-streaming-en-0.6b
+        fetch: { kind: snapshot, allow_patterns: ["*.gguf"] }
+        size_bytes: 600000000
+        size_label: 0.6 GB
+        languages: English only
+        language_auto: false
+        english_only: true
+        word_ts: aligner
+        notes: English-only streaming predecessor.
+      - id: nemo-parakeet-tdt-v3
+        name: Parakeet TDT 0.6B v3
+        role: asr
+        repo: nvidia/parakeet-tdt-0.6b-v3
+        fetch: { kind: snapshot, allow_patterns: ["*.gguf"] }
+        size_bytes: 600000000
+        size_label: 0.6 GB
+        languages: 25 European languages
+        language_auto: false
+        word_ts: native
+        notes: Offline only; self-punctuating; native per-token time spans.
+      - id: nemo-diar-nemotron-3
+        name: Nemotron 3 Diarization
+        role: diar
+        repo: nvidia/Nemotron-3-Diarization
+        fetch: { kind: snapshot, allow_patterns: ["*.gguf"] }
+        size_bytes: 1200000000
+        size_label: ~1.2 GB
+        languages: English-centric
+        language_auto: false
+        word_ts: none
+        max_speakers: 8
+        notes: Newest diarizer (Sept 2026); AOSC streaming + offline. Use the very-high-latency offline profile.
+      - id: nemo-diar-sortformer-4spk-v2.1
+        name: Sortformer 4spk v2.1
+        role: diar
+        repo: nvidia/diar_streaming_sortformer_4spk-v2.1
+        fetch: { kind: snapshot, allow_patterns: ["*.gguf"] }
+        size_bytes: 300000000
+        size_label: ~0.3 GB
+        languages: English-centric
+        language_auto: false
+        word_ts: none
+        max_speakers: 4
+        notes: Fallback diarizer, capped at four speakers.
+
+  - key: qwen3-asr
+    name: Qwen3-ASR
+    runtime: transformers
+    kind: asr
+    devices: [cpu, cuda]
+    probe:
+      modules: [transformers, torch]
+    license: Apache-2.0
+    notes: Top open-source ASR quality. Word timestamps come from the Qwen3 ForcedAligner.
+    models:
+      - id: qwen3-asr-0.6b
+        name: Qwen3-ASR 0.6B
+        role: asr
+        repo: Qwen/Qwen3-ASR-0.6B-hf
+        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py"] }
+        size_bytes: 1000000000
+        size_label: ~1.0 GB
+        languages: 30 multilingual + 22 Chinese dialects
+        language_auto: true
+        word_ts: aligner
+        notes: bf16; cheap. Word timestamps require the aligner.
+      - id: qwen3-asr-1.7b
+        name: Qwen3-ASR 1.7B
+        role: asr
+        repo: Qwen/Qwen3-ASR-1.7B-hf
+        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py"] }
+        size_bytes: 3400000000
+        size_label: ~3.4 GB
+        languages: 30 multilingual + 22 Chinese dialects
+        language_auto: true
+        word_ts: aligner
+        notes: SOTA open-source quality (mean WER 5.59).
+  - key: pyannote
+    name: pyannote.audio
+    runtime: pyannote.audio
+    kind: diar
+    devices: [cpu, cuda]
+    probe:
+      modules: [pyannote.audio, torch]
+    license: MIT
+    notes: Mature speaker diarization. Both pipelines are gated on Hugging Face.
+    models:
+      - id: pyannote-community-1
+        name: speaker-diarization-community-1
+        role: diar
+        repo: pyannote/speaker-diarization-community-1
+        fetch: { kind: snapshot, allow_patterns: ["*.bin", "*.json", "*.yaml", "*.yml", "*.txt"] }
+        size_bytes: 1200000000
+        size_label: ~1.2 GB
+        languages: Multilingual
+        language_auto: false
+        word_ts: none
+        gated: true
+        max_speakers: 8
+        notes: Current OSS flagship. Accept both the pipeline and segmentation model licenses.
+      - id: pyannote-3.1
+        name: speaker-diarization-3.1
+        role: diar
+        repo: pyannote/speaker-diarization-3.1
+        fetch: { kind: snapshot, allow_patterns: ["*.bin", "*.json", "*.yaml", "*.yml", "*.txt"] }
+        size_bytes: 1000000000
+        size_label: ~1.0 GB
+        languages: Multilingual
+        language_auto: false
+        word_ts: none
+        gated: true
+        max_speakers: 4
+        notes: Stable legacy fallback, capped at four speakers by the pipeline.
+
+  - key: qwen3-aligner
+    name: Qwen3 ForcedAligner
+    runtime: transformers
+    kind: aligner
+    devices: [cpu, cuda]
+    probe:
+      modules: [transformers, torch]
+    license: Apache-2.0
+    notes: Optional word-timestamp fallback engine. Aligns any transcript, 11 languages, <=5-minute windows.
+    models:
+      - id: qwen3-aligner-0.6b
+        name: Qwen3 ForcedAligner 0.6B
+        role: aligner
+        repo: Qwen/Qwen3-ForcedAligner-0.6B-hf
+        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py"] }
+        size_bytes: 1000000000
+        size_label: ~1.0 GB
+        languages: Aligns 11 languages
+        language_auto: false
+        word_ts: native
+        notes: Word-timestamp fallback for any transcript (<=5-minute windows).
+        language_codes: ["zh", "en", "yue", "fr", "de", "it", "ja", "ko", "pt", "ru", "es"]
+
+  - key: demo
+    name: Demo Engine
+    runtime: built-in synthetic transcript
+    kind: demo
+    devices: [cpu]
+    probe:
+      builtin: true
+    license: MIT
+    notes: Deterministic sample transcript for tours and tests. Never sends audio anywhere.
+    hidden: false
+    models:
+      - id: demo-script
+        name: Synthetic tour transcript
+        role: asr
+        repo:
+        fetch:
+        size_bytes: 0
+        size_label: bundled
+        languages: English demo
+        language_codes: ["en"]
+        language_auto: false
+        word_ts: native
+        default: false
+        notes: Produces a readable sample so the full queue, merge and renderer path can be explored without weights.
+
+languages:
+  whisper: ["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh"]
+  nemo: ["en-US", "en-GB", "es-ES", "es-MX", "fr-FR", "de-DE", "it-IT", "pt-BR", "pt-PT", "nl-NL", "pl-PL", "ru-RU", "uk-UA", "tr-TR", "ar-SA", "he-IL", "hi-IN", "bn-IN", "ta-IN", "te-IN", "mr-IN", "gu-IN", "kn-IN", "ml-IN", "pa-IN", "ur-PK", "fa-IR", "th-TH", "vi-VN", "id-ID", "ms-MY", "fil-PH", "ja-JP", "ko-KR", "zh-CN", "zh-TW", "yue-HK", "sv-SE", "da-DK", "nb-NO"]
+  qwen3: ["zh", "en", "yue", "ar", "de", "fr", "es", "pt", "it", "ru", "ko", "ja", "nl", "tr", "pl", "uk", "vi", "th", "id", "ms", "hi", "bn", "fa", "ur", "ta", "te", "mr", "gu", "he", "sv"]
+  aligner: ["zh", "en", "yue", "fr", "de", "it", "ja", "ko", "pt", "ru", "es"]

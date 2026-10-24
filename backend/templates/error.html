@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ status }} — WrittenSound{% endblock %}
+{% block content %}
+<section class="card error-card">
+  <p class="eyebrow">A small detour</p>
+  <h1>{{ status }}</h1>
+  <p class="lede">{{ detail }}</p>
+  <p><a class="btn" href="/">Return to the queue</a></p>
+</section>
+{% endblock %}
