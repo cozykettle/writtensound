@@ -37,6 +37,18 @@ Real engine binaries (`whisper-cli`, `nemo-speech`) must be installed or pointed
 
 ## Docker
 
+### Prebuilt image (recommended)
+
+The standard CPU + Vulkan image is built by GitHub Actions and published to the public GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/cozykettle/writtensound:latest
+```
+
+Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Release tags such as `v0.1.0` are published alongside `latest`; pin a version if you do not want automatic updates.
+
+### Build from source
+
 Copy the example environment file and set a data path. The default data path is `./data`; on Unraid use an appdata or share path.
 
 ```bash

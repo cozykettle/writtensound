@@ -11,6 +11,8 @@ Target flow: `git clone https://github.com/CozyKettle/writtensound && cd written
 | `writtensound:standard` | `final-standard` | CPU+**Vulkan** whisper.cpp + CPU+Vulkan NeMo-Speech.cpp + faster-whisper (CT2 CPU) + Qwen3/pyannote (CPU torch) + ffmpeg | ~3.3 GB (built) | first CI/manual build ~10–20 min |
 | `writtensound:cuda` | `final-cuda` | identical app stack, plus CUDA+Vulkan builds of whisper.cpp & NeMo-Speech.cpp + cu12 torch + CTranslate2/CUDA dependencies (cuDNN) in the SAME image | ~8-12 GB (estimated) | ~25-45 min (not completed here) |
 
+The standard target is published as `ghcr.io/cozykettle/writtensound:latest` (and version/SHA tags) by the GitHub Actions workflow. `writtensound:standard` remains the local-build tag. The CUDA target is not published.
+
 `cuda` is the superset for NVIDIA users; A380/other-Vulkan users pick `standard`. The app detects hardware at boot and greys device options that its image cannot honor (standard image: no CUDA radio option).
 
 Both variants are built from **one Dockerfile** with explicit final targets, `final-standard` and `final-cuda`. Compose selects the target; there is no `PROFILE` build argument.
@@ -98,11 +100,14 @@ the repository-local `./data` so a fresh checkout works on any host.
 
 ## 4. Unraid specifics (6.x)
 
-1. **Preferred**: install the *Docker Compose Manager* plugin → point it to `docker-compose.yml` in a cloned copy of the repo (e.g. `/mnt/user/appdata/writtensound/compose`) → up.
-2. **Alternative**: build the image once on Unraid (`docker build --target final-standard -t writtensound:standard .`) and add the container by hand with the mappings above (template source file `unraid/writtensound.xml` ships in the repo; fill icon/template icon fields manually on the Unraid form). The template passes through `/dev/dri` via `ExtraParams`; remove that field for a CPU-only host.
-3. **Intel A380 passthrough**: ensure `intel-iommu=on` and `/dev/dri/renderD128` exists on host; no `LOCALAPP` secret. Host driver: depends on kernel (Linux ≥5.x ships `xe`/`i915`); **mesa-vulkan-drivers inside the container + host ICD (via /dev/dri) is the only requirement** — no host mesa install needed.
-4. **NVIDIA on unraid**: attach the NVIDIA Driver plugin + NFD (nvidia-docker). Unraid 7.x template settings include "GPU: NVIDIA" dropdown — mapped equivalent = `deploy.resources.reservations.devices` above.
-5. Data share: `/mnt/user/appdata/writtensound` (the Unraid template default) on a ZFS/BTRFS share or cache-only pool — user must ensure sub-directories get created with correct permissions (PUID/PGID approach handles it).
+Unraid Docker templates point at a prebuilt image; they do not clone a repository or run a build. The repository's [`unraid/writtensound.xml`](../unraid/writtensound.xml) therefore targets the published GHCR image directly.
+
+1. **Recommended — prebuilt image**: use `ghcr.io/cozykettle/writtensound:latest` in the template or Add Container form. The public GHCR package needs no registry login. The template passes `/dev/dri` via `ExtraParams`; remove that field for a CPU-only host. Use a version tag such as `v0.1.0` instead of `latest` when you want deliberate updates.
+2. **Local build (alternative)**: build on Unraid with `docker build --target final-standard -t writtensound:standard .`, then point the template at `writtensound:standard`. This keeps no registry dependency but uses local build cache and takes substantially longer.
+3. **Docker Compose Manager**: optional for people who prefer compose. A checkout can run `docker compose up -d --build`; the checked-in compose file builds from source unless an image is supplied. It is not required for the Unraid template.
+4. **Intel A380 passthrough**: ensure `intel-iommu=on` and `/dev/dri/renderD128` exists on host; no `LOCALAPP` secret. Host driver: depends on kernel (Linux ≥5.x ships `xe`/`i915`); **mesa-vulkan-drivers inside the container + host ICD (via /dev/dri) is the only requirement** — no host mesa install needed.
+5. **NVIDIA on unraid**: attach the NVIDIA Driver plugin + NFD (nvidia-docker). Unraid 7.x template settings include "GPU: NVIDIA" dropdown — mapped equivalent = `deploy.resources.reservations.devices` above.
+6. Data share: `/mnt/user/appdata/writtensound` (the Unraid template default) on a ZFS/BTRFS share or cache-only pool — user must ensure sub-directories get created with correct permissions (PUID/PGID approach handles it).
 
 ## 5. Runtime flow (post-boot, standard profile, A380)
 
@@ -112,10 +117,17 @@ the repository-local `./data` so a fresh checkout works on any host.
 4. Pipeline then runs at stage `ASR`, spawning `whisper-cli` with vulkan flags; UI shows stage bar.
 5. On done, out fileset listed in job row; clickable to download.
 
-## 6. Optional CI workflow (`.github/workflows/docker.yml`)
+## 6. Publishing workflow (`.github/workflows/docker.yml`)
 
-- Trigger: `push` + tags `v*` (save preview). Job 1: build `final-standard` (runs on `ubuntu-latest` with a vulkan-capable builder). Job 2: build `final-cuda`. Push both to `ghcr.io/<owner>/writtensound:{standard,cuda}-{sha}` (+ `latest` for standard on tag events).
-- Optional `workflow_dispatch` for spike runs. Artifact supply keeps repo self-sufficient without publishing.
+- Trigger: tag push `v*` (release) or `workflow_dispatch` (manual test).
+- Builds `final-standard` on `ubuntu-latest` for `linux/amd64` and pushes to `ghcr.io/cozykettle/writtensound` with:
+  - `latest` on version tags;
+  - the semantic version and major/minor tags (for example `0.1.0`, `0.1`);
+  - a `sha-<commit>` tag for every build.
+- Authenticates with the built-in `GITHUB_TOKEN` (`packages: write`); no personal access token is stored.
+- The standard package is public and free under GitHub's public-container policy. Do not upload a `docker save` tarball to Releases or Actions artifacts; that duplicates the image and defeats the storage savings.
+- CUDA is deliberately not published. It remains an optional local build for NVIDIA hosts; the A380 deployment uses the standard image.
+- The first package push defaults to private. Set the GHCR package visibility to **Public** once, otherwise Unraid cannot pull it anonymously.
 
 ## 7. Operational runbook (condensed)
 

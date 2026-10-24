@@ -71,27 +71,28 @@ docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d --build
 
 ## 4. Final Unraid deployment
 
-Preferred: build the standard target on the Unraid host from the release
-source, then use `unraid/writtensound.xml` and mount:
+Preferred: pull the public standard image from GHCR with
+`unraid/writtensound.xml`:
 
 ```text
+ghcr.io/cozykettle/writtensound:latest
 /mnt/user/appdata/writtensound -> /data
 ```
 
 The template passes `/dev/dri`; remove that mapping for CPU-only Unraid.
+No registry login is needed once the GHCR package is public. Use a version
+tag instead of `latest` for deliberate updates.
 
-Alternative: build on Windows, export, copy, and load:
-
-```powershell
-docker save writtensound:standard -o writtensound-standard.tar
-```
-
-```bash
-docker load -i writtensound-standard.tar
-```
+Alternative: build the standard target on Unraid from the release source and
+point the template at the local `writtensound:standard` image. This avoids a
+registry dependency but uses local build cache and takes substantially longer.
+Do not use a `docker save` tarball as the release artifact; the GHCR image is
+already the transfer mechanism.
 
 Before starting on Unraid:
 
+- ensure the Docker image file or directory has room for the roughly 3.3 GB
+  image plus update headroom;
 - set `PUID=99` and `PGID=100` (or the share owner);
 - set `WS_DATA_DIR`/the template data path;
 - set `APP_PASSWORD` if the LAN is not trusted;
@@ -107,7 +108,8 @@ This is the durable list when chat context is lost.
 |---|---|---|---|
 | 1 | Scrub third-party app references from docs, UI, package metadata, and deployment metadata | README, docs, `backend/templates/engines.html`, `pyproject.toml`, `unraid/writtensound.xml` | done |
 | 2 | Add the AI-slop warning to the README | `README.md` | done |
-| 3 | *(next requested change)* | | pending |
+| 3 | Publish the standard CPU + Vulkan image through GitHub Actions to public GHCR and point the Unraid template at it | `.github/workflows/docker.yml`, `unraid/writtensound.xml`, README, docs | in progress |
+| 4 | *(next requested change)* | | pending |
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.

@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>WrittenSound</Name>
-  <Repository>writtensound:standard</Repository>
-  <Registry/>
+  <Repository>ghcr.io/cozykettle/writtensound:latest</Repository>
+  <Registry>https://github.com/cozykettle/writtensound/pkgs/container/writtensound</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support/>
+  <Support>https://github.com/CozyKettle/writtensound/issues</Support>
   <Project>https://github.com/CozyKettle/writtensound</Project>
-  <Overview>Local-first speech-to-text with a focused transcript view, a serial job queue, and on-demand model downloads. Build the standard image from the repository first: docker build --target final-standard -t writtensound:standard .</Overview>
+  <Overview>Local-first speech-to-text with a focused transcript view, a serial job queue, and on-demand model downloads. Uses the prebuilt public CPU + Vulkan image from GHCR.</Overview>
   <Category>MediaApp:Video Productivity:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
-  <TemplateURL/>
+  <TemplateURL>https://raw.githubusercontent.com/CozyKettle/writtensound/main/unraid/writtensound.xml</TemplateURL>
   <Icon/>
   <ExtraParams>--device=/dev/dri:/dev/dri</ExtraParams>
   <PostArgs/>
