@@ -98,14 +98,16 @@ Before starting on Unraid:
 - confirm `/dev/dri/renderD128` exists for Vulkan;
 - choose and download the intended model only after the container is healthy.
 
-## 5. Pending change queue
+## 5. Change queue and log
 
-Add each requested change here before implementing it, one line each, then
-check it off. This is the durable list when chat context is lost.
+Add each requested change here before implementing it, then update its status.
+This is the durable list when chat context is lost.
 
 | # | Change | Files | Status |
 |---|---|---|---|
-| 1 | *(add requested deployment/UI change)* | | pending |
+| 1 | Scrub all noScribe references from docs, UI, package metadata, and deployment metadata | README, docs, `backend/templates/engines.html`, `pyproject.toml`, `unraid/writtensound.xml` | done `d04c0a0` |
+| 2 | Add the AI-slop warning to the README | `README.md` | done `d04c0a0` |
+| 3 | *(next requested change)* | | pending |
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.
