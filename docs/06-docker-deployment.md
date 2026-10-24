@@ -1,6 +1,6 @@
 # WrittenSound — Docker, GPU & Deployment Specification
 
-Target flow: `git clone https://github.com/<you>/writtensound && cd writtensound && docker compose up -d` on a machine with (or without) GPUs. Everything else — engine binaries, python deps — is baked; **models are never baked** and download on demand via the UI.
+Target flow: `git clone https://github.com/CozyKettle/writtensound && cd writtensound && docker compose up -d` on a machine with (or without) GPUs. Everything else — engine binaries, python deps — is baked; **models are never baked** and download on demand via the UI.
 
 ---
 

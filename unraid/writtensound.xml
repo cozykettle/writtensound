@@ -8,7 +8,7 @@
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <Support/>
-  <Project/>
+  <Project>https://github.com/CozyKettle/writtensound</Project>
   <Overview>Local-first speech-to-text with a noScribe-style transcript view, a serial job queue, and on-demand model downloads. Build the standard image from the repository first: docker build --target final-standard -t writtensound:standard .</Overview>
   <Category>MediaApp:Video Productivity:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
