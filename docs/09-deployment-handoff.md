@@ -4,12 +4,16 @@ Use this file when continuing in a fresh agent session. It records the verified
 baseline, where to make changes, and the final Unraid path. Detailed behavior
 is still owned by docs 00-08.
 
-## 1. Current verified baseline (2026-10-23)
+## 1. Current verified baseline (2026-10-24)
 
 - Source gates: `ruff`, `mypy`, and `pytest -m "not gpu"` (33 tests) pass.
 - `writtensound:standard` was built and smoke-tested: CPU torch
   `2.9.1+cpu`, both pinned engine binaries answer `--help`, the demo job
   produced all five output formats, and the container ran as UID/GID 99/100.
+- Tag `v0.1.0` was built by GitHub Actions in 8m21s and published publicly to
+  GHCR as `ghcr.io/cozykettle/writtensound:latest` (digest
+  `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`).
+  An anonymous pull, health check, and updated Engines page were verified.
 - Docker Desktop on Windows cannot pass `/dev/dri`; use
   `docker-compose.cpu.yml` there. CPU + the demo engine are the supported
   Windows test path.
@@ -108,7 +112,7 @@ This is the durable list when chat context is lost.
 |---|---|---|---|
 | 1 | Scrub third-party app references from docs, UI, package metadata, and deployment metadata | README, docs, `backend/templates/engines.html`, `pyproject.toml`, `unraid/writtensound.xml` | done |
 | 2 | Add the AI-slop warning to the README | `README.md` | done |
-| 3 | Publish the standard CPU + Vulkan image through GitHub Actions to public GHCR and point the Unraid template at it | `.github/workflows/docker.yml`, `unraid/writtensound.xml`, README, docs | in progress |
+| 3 | Publish the standard CPU + Vulkan image through GitHub Actions to public GHCR and point the Unraid template at it | `.github/workflows/docker.yml`, `unraid/writtensound.xml`, README, docs | done `v0.1.0` |
 | 4 | *(next requested change)* | | pending |
 
 At the end of a change set, append the decision and verification date to
@@ -116,7 +120,8 @@ At the end of a change set, append the decision and verification date to
 
 ## 6. Version-control note
 
-This workspace currently has no Git executable or repository. Install Git for
-Windows and initialize a baseline before making a large change set, or keep a
-source-only snapshot archive outside the repository. Never include `.venv`,
-`data`, models, media, or logs in either.
+The repository is initialized on `main` and tracks the public remote. Keep
+changes in small Conventional Commits and never include `.venv`, `data`,
+models, media, logs, or credentials. A source-only rollback archive was kept
+outside the repository during the initial build-up; do not add such archives
+to Git or GitHub Releases.

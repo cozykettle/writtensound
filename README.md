@@ -106,7 +106,9 @@ Engine source tags are pinned in [`docker-build-args.env`](docker-build-args.env
 
 ### Verification status
 
-As of 2026-10-23, the `final-standard` image was built on Docker 29.9.2 / Linux x86_64 (3.28 GB), reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The container started as UID/GID 99/100, reached `healthy`, and completed an uploaded WAV through the demo engine with HTML, TXT, SRT, VTT, JSON, and log outputs. `uv run ruff check .`, `uv run mypy backend`, and the 33 non-GPU tests pass. A CUDA target build was attempted; its Python layer installed and asserted `torch 2.9.1+cu128`, but the long nvcc compilation of the CUDA+Vulkan engine stages was stopped on this CPU-only host, so no `writtensound:cuda` image is claimed. See [`docs/process-notes.md`](docs/process-notes.md) for the exact record.
+As of 2026-10-24, the `final-standard` image was built on Docker 29.9.2 / Linux x86_64 (3.28 GB), reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local container started as UID/GID 99/100, reached `healthy`, and completed an uploaded WAV through the demo engine with HTML, TXT, SRT, VTT, JSON, and log outputs. `uv run ruff check .`, `uv run mypy backend`, and the 33 non-GPU tests pass.
+
+The GitHub Actions build published `v0.1.0` to GHCR as `ghcr.io/cozykettle/writtensound:latest` (digest `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`). The public image was pulled anonymously, started as UID/GID 99/100, reached `healthy`, and returned HTTP 200 from `/healthz`; the Engines page served the updated wording. A CUDA target build was attempted; its Python layer installed and asserted `torch 2.9.1+cu128`, but the long nvcc compilation of the CUDA+Vulkan engine stages was stopped on this CPU-only host, so no `writtensound:cuda` image is claimed. See [`docs/process-notes.md`](docs/process-notes.md) for the exact record.
 
 ### Security
 

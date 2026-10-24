@@ -127,7 +127,7 @@ Unraid Docker templates point at a prebuilt image; they do not clone a repositor
 - Authenticates with the built-in `GITHUB_TOKEN` (`packages: write`); no personal access token is stored.
 - The standard package is public and free under GitHub's public-container policy. Do not upload a `docker save` tarball to Releases or Actions artifacts; that duplicates the image and defeats the storage savings.
 - CUDA is deliberately not published. It remains an optional local build for NVIDIA hosts; the A380 deployment uses the standard image.
-- The first package push defaults to private. Set the GHCR package visibility to **Public** once, otherwise Unraid cannot pull it anonymously.
+- Verify the GHCR package visibility is **Public** after the first push; this package is public and was pulled anonymously. A private package would require Unraid registry credentials.
 
 ## 7. Operational runbook (condensed)
 
@@ -140,10 +140,11 @@ Unraid Docker templates point at a prebuilt image; they do not clone a repositor
 | Data dir on disk full | staging cleanup service + retention; consider `WS_DATA_DIR` on bigger share |
 | pyannote bad token | settings page token save; retry download; check two-repo acceptance |
 
-## 8. Verification status (2026-10-23)
+## 8. Verification status (2026-10-24)
 
 - `docker build --target final-standard -t writtensound:standard .` completed on Docker 29.9.2 / Linux x86_64. The image is 3.28 GB, reports `torch 2.9.1+cpu`, and both pinned engine binaries (`whisper-cli` v1.9.5 and `nemo-speech` v0.2.0) answer `--help`.
-- The standard container starts as UID/GID 99/100, reaches `healthy`, serves the queue and Engines pages, and completed an uploaded WAV through the demo engine with `ir.json`, `tour.html`, `tour.srt`, `tour.txt`, and `tour.vtt` plus pipeline/engine logs.
+- The local standard container starts as UID/GID 99/100, reaches `healthy`, serves the queue and Engines pages, and completed an uploaded WAV through the demo engine with `ir.json`, `tour.html`, `tour.srt`, `tour.txt`, and `tour.vtt` plus pipeline/engine logs.
+- The GitHub Actions workflow built `v0.1.0` in 8m21s and published `ghcr.io/cozykettle/writtensound:latest` plus `0.1.0`, `0.1`, and `sha-961fb42` tags. The package is public; an anonymous pull succeeded and the resulting container reached `healthy` with `/healthz` returning 200. Published digest: `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`.
 - The CUDA target's Python layer installed `torch 2.9.1+cu128`, installed the expected cu12 NVIDIA wheels, and asserted `torch.version.cuda == "12.8"`. The full `final-cuda` target was stopped during nvcc compilation of the CUDA+Vulkan engine stages on this CPU-only host, so no `writtensound:cuda` image is claimed. CUDA hardware execution, A380/Vulkan execution, and real model inference remain unverified. Do not present those paths as production-verified.
 - `uv run ruff check .`, `uv run mypy backend`, and `uv run pytest -m "not gpu"` (33 tests) pass on the source tree. See [`process-notes.md`](process-notes.md) for the exact record.
 - The app uses no silent device fallback: a failed engine invocation becomes a visible job error, and the aligner refuses to run until Phase A confirms its CLI contract.
