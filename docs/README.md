@@ -1,10 +1,10 @@
 # WrittenSound — Documentation Index
 
-A self-hosted, noScribe-style web app for local speech-to-text with a multi-engine model catalog (Whisper-family, NVIDIA Nemotron ASR + Sortformer/Nemotron-3 diarization, Qwen3-ASR), a serial job queue with per-job settings, and Vulkan/CUDA/CPU flexibility.
+A self-hosted, local-first web app for speech-to-text with a multi-engine model catalog (Whisper-family, NVIDIA Nemotron ASR + Sortformer/Nemotron-3 diarization, Qwen3-ASR), a serial job queue with per-job settings, and Vulkan/CUDA/CPU flexibility.
 
 | Doc | Contents |
 |---|---|
-| `docs/00-overview.md` | Vision, goals/non-goals, stack rationale, noScribe parity mapping, risks, glossary |
+| `docs/00-overview.md` | Vision, goals/non-goals, stack rationale, desktop workflow mapping, risks, glossary |
 | `docs/01-architecture.md` | Component diagram, process model, data layout, adapter contract, detection, failure semantics |
 | `docs/02-engines-and-models.md` | Engine registry, model catalog (repos, sizes, langs), device matrix + graying rules, capability matrix, spikes |
 | `docs/03-backend-api.md` | Env & config, SQLite DDL, JobSettings schema, all REST routes, SSE events, error model, boot sequence |

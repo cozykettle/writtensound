@@ -1,7 +1,7 @@
 [project]
 name = "writtensound"
 version = "0.1.0"
-description = "Self-hosted, noScribe-style speech-to-text with a multi-engine model catalog."
+description = "Self-hosted, local-first speech-to-text with a multi-engine model catalog."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12,<3.13"

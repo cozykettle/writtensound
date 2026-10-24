@@ -180,7 +180,7 @@ map labels: label(i) = f"Speaker {i+1}" (arrival order = speaker index ascending
 ### 4.2 Timestamps rules by `timestamps_mode`
 
 - `none` — raw text only (TXT mode strips all; SRT/VTT impossible → gate rejected in settings validation: emit toast always).
-- `interval` — insert `[hh:mm:ss]` at first word ≥ every N seconds of media time (not per segment), ALSO at each speaker turn start (noScribe parity).
+- `interval` — insert `[hh:mm:ss]` at first word ≥ every N seconds of media time (not per segment), also at each speaker turn start.
 - `turns` — timestamp only at turn starts.
 
 ## 5. Output renderers (each takes `MergedSegment[]`, `pauses`, settings, engine meta)
@@ -192,13 +192,13 @@ Naming: `out_basename` else `media_id`+suffix when clip or collisions (`_clip`)?
 - One paragraph per segment.
 - Turn boundaries get a blank line + `Speaker N:` prefix when diar used.
 - `timestamps_mode != none` → `[hh:mm:ss]` per §4.2.
-- `mark_pauses` → noScribe parity: one dot per second of pause in brackets: `( .)` per second, capped at 5 dots + `(+{N} s)` for longer.
+- `mark_pauses` → one dot per second of pause in brackets: `( .)` per second, capped at 5 dots + `(+{N} s)` for longer.
 - Encoding UTF-8, `\n` LF line endings.
 
 ### 5.2 HTML
 
-Jinja2 template `out/transcript.html.j2` — self-contained (inline CSS, no remote assets), print friendly, noScribe-like:
-- Header block: title (media name), job meta (date ISO, engine, model, device, language, duration, diarizer, version row "noScribe-style: WrittenSound vX").
+Jinja2 template `out/transcript.html.j2` — self-contained (inline CSS, no remote assets), clean and print friendly:
+- Header block: title (media name), job meta (date ISO, engine, model, device, language, duration, diarizer, version row "WrittenSound vX").
 - Body per speaker turn: `<h3>Speaker N <span>[hh:mm:ss]</span></h3>` (when diar; turn timestamps follow § 4.2 rules), then `<p>` per segment; line numbers in a left gutter via CSS counters.
 - Interjection/overlap: reserved class, v1 simply bold-italicize `//…//` when `overlap` segments get wrapped in `<span class=overlap>` (no "//"; separated: Informational note, colored hover) — final UX text decided with preview.
 - Pause dots inline as `( .)` styled muted.

@@ -10,7 +10,7 @@ This file is the operational instruction set for an autonomous coding agent (ope
 
 1. `README.md` (repo root, if present)
 2. `AGENTS.md` (repo root) — this file's condensed sibling
-3. `docs/00-overview.md` — what & why, noScribe parity mapping
+3. `docs/00-overview.md` — what & why, desktop workflow mapping
 4. `docs/01-architecture.md` — components, threading, storage, adapter contracts
 5. `docs/02-engines-and-models.md` — the catalog: THE source of truth for engines/models/devices/grays; note every `SPIKE:` item
 6. `docs/03-backend-api.md` — HTTP/SSE contract, DB DDL, JobSettings schema

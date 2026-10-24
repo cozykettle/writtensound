@@ -118,7 +118,7 @@
     <div><p class="eyebrow">About</p><h2>WrittenSound v{{ version }}</h2></div>
     <span class="pill pill-quiet">MIT</span>
   </div>
-  <p class="lede">A self-hosted, noScribe-style porch for local speech-to-text. One queue, a broad model shelf, and output files that belong to you.</p>
+  <p class="lede">A self-hosted, local-first home for speech-to-text. One queue, a broad model shelf, and output files that belong to you.</p>
   <div class="about-grid">
     <div><span class="label">Data directory</span><code>{{ paths.root }}</code></div>
     <div><span class="label">Default model</span><code>{% if default_model and default_engine %}{{ default_engine.name }} · {{ default_model.name }}{% else %}{{ config.defaults.asr_model_id }}{% endif %}</code></div>

@@ -1,6 +1,9 @@
 # WrittenSound
 
-Self-hosted, local-first speech-to-text with a noScribe-style transcript view, a serial job queue, and a multi-engine model catalog. WrittenSound never sends audio to a hosted service: uploads, inference, model files, and job outputs stay on the machine running the app.
+> [!WARNING]
+> **⚠️ AI SLOP ALERT ⚠️** At absolutely no point did a human write a single line of code or documentation for this entire application. A human spent roughly two whole minutes of strenuous brain power sketching out an idea for a program they sorta wanted to try for a project, then offloaded every remaining thought to the machines and called it a day. Not even *good* machines, mind you: the human was too lazy to pay for an actual flagship model, so this was vomited out by promotional-tier GLM 5.3 Flash and DeepSeek 4.1 Flash instead. This repository is the result. Abandon all hope, ye who enter here, for all that shall meet you is slop to wade through.
+
+Self-hosted, local-first speech-to-text with a focused transcript view, a serial job queue, and a multi-engine model catalog. WrittenSound never sends audio to a hosted service: uploads, inference, model files, and job outputs stay on the machine running the app.
 
 The project is currently a **working preview**. The demo engine, queue, upload flow, SSE updates, settings, renderers, and job output/download paths are implemented and covered by a hermetic test suite. Real-engine adapters and Docker engine builds exist, but the Phase A runtime verification described in [`docs/02`](docs/02-engines-and-models.md) is still required before they can be called production-ready.
 

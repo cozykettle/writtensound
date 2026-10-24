@@ -1,6 +1,6 @@
 # WrittenSound — Overview, Goals & Stack
 
-**WrittenSound** is a self-hosted, Docker-deployed web app for local, private speech-to-text transcription and speaker diarization. It is the spiritual successor to [noScribe](https://github.com/kaixxx/noScribe) as a *web service*: same simple, functional philosophy — no cloud, no accounts-as-a-product, no fancy charts — but running on your server, driven through a browser, with a far broader model catalog than noScribe's two Whisper presets.
+**WrittenSound** is a self-hosted, Docker-deployed web app for local, private speech-to-text transcription and speaker diarization. It follows the simple, functional philosophy of desktop transcription tools — no cloud, no accounts-as-a-product, no fancy charts — but runs on your server, is driven through a browser, and offers a far broader model catalog than the usual two-preset desktop app.
 
 - **Target deployment:** Unraid server with an Intel Arc A380 (Vulkan-capable) GPU and optional fallback NVIDIA/CUDA machines.
 - **Primary interface:** one web page (queue-centric), simple, htmx-driven, keyboard-light.
@@ -16,7 +16,7 @@
    - **Device**: auto / CPU / CUDA / Vulkan, with warnings when a model or engine cannot use a chosen device.
    - **Output style**: raw text only, timestamps every *N* seconds, timestamps on speaker turns, word-level timestamps, SRT/VTT captions.
    - **Diarization**: off / NVIDIA Nemotron-3 Diarization / pyannote; optional number of speakers.
-   - noScribe-parity extras: language + auto-detect (where supported), start/stop range, mark pauses, verbatim/fillers mode (where supported).
+   - Additional transcript settings: language + auto-detect (where supported), start/stop range, mark pauses, verbatim/fillers mode (where supported).
 3. A single serial queue processes jobs one at a time and writes all selected output formats to a shared output directory.
 4. An **Engines** page lists every supported engine/model with install size, device support and notes; downloading an engine's weights is one click. Engines may be installed but kept disabled — a disabled-but-installed engine only appears when explicitly chosen.
 
@@ -26,17 +26,17 @@
 
 | # | Goal |
 |---|---|
-| G1 | Faithful noScribe-style UX mapped to the web: settings per file, queue, simple results. |
+| G1 | Focused, queue-first UX mapped to the web: settings per file, queue, simple results. |
 | G2 | Multiple ASR engines + models, selected in the UI, weights auto-downloaded from HF or loaded from local GGUF. |
 | G3 | GPU flexibility: **Vulkan** (Intel/AMD — A380 primary target) and **CUDA**, with automatic CPU fallback and device warnings. |
 | G4 | Serial queue with per-job settings snapshots, folder/multi-file upload, cancel/retry. |
-| G5 | noScribe-parity output: HTML transcript, TXT, SRT, VTT, JSON (+ pause marking, timestamps, speaker labels). |
+| G5 | Complete output set: HTML transcript, TXT, SRT, VTT, JSON (+ pause marking, timestamps, speaker labels). |
 | G6 | Zero-config-ish Docker: `docker compose up -d` (or Unraid template) from the repo; models are the only thing downloaded at runtime, on demand, via the UI. |
 | G7 | Everything auditable: precise specs so a coding agent can implement without design decisions on the fly. |
 
 ## 3. Non-goals (v1)
 
-- **No in-browser audio-sync editor** (noScribeEditor). Revisit after v1; transcripts are static HTML.
+- **No in-browser audio-sync editor.** Revisit after v1; transcripts are static HTML.
 - No multi-user accounts, no public-internet exposure story beyond optional password.
 - No training/fine-tuning, no TTS, no translation.
 - No cross-language speech translation.
@@ -50,7 +50,7 @@
 | Backend | **Python 3.12 + FastAPI + uvicorn** | Every interesting ASR/diarization library is Python-native (`faster-whisper`, `transformers` for Qwen3-ASR, `pyannote.audio`); subprocesses for the two C++ runtimes (whisper.cpp, NeMo-Speech.cpp). One language = one container layer. |
 | UI | **Server-rendered Jinja2 + htmx + a little vanilla JS** (no SPA, no node build chain) | Queue updates stream over SSE; forms are regular posts; drag-and-drop and upload sequencing is small vanilla JS. trivially debuggable, minimal dependency surface. |
 | DB | **SQLite** (WAL) single file under a volume | one writer (serial queue), tiny schema, zero ops. |
-| Queue execution | **Single worker thread + subprocess orchestration**, asyncio for SSE/upload only | noScribe-style one-at-a-time; avoids GPU contention and OOM on 6 GB A380. |
+| Queue execution | **Single worker thread + subprocess orchestration**, asyncio for SSE/upload only | one job at a time; avoids GPU contention and OOM on 6 GB A380. |
 | C++ engines | **whisper.cpp** (whisper family, GGUF/GGML) and **NVIDIA NeMo-Speech.cpp** (Nemotron ASR + Sortformer/Nemotron-3 diarization, Silero VAD) | The only maintained paths to **Vulkan** for these models; both are CLI-friendly with JSON/structured output; NeMo-Speech.cpp is NVIDIA's official ggml runtime with day-0 model support and a documented vulkan backend (`--device vulkan:0`). |
 | Deep Learning engines | **faster-whisper** (CT2) and **Qwen3-ASR via `transformers>=5.13`** | faster-whisper: fastest CPU/CUDA whisper path, word timestamps, batched mode. Qwen3: top open-source ASR quality (`AutoModelForMultimodalLM`), plus **Qwen3-ForcedAligner** for word timestamps on any transcript. |
 | Diarization | **Nemotron-3-Diarization (GGUF via NeMo-Speech.cpp)** and **pyannote** (`community-1`, fallback `3.1`) | Nemotron: 8 speakers, GPU via Vulkan — works on the A380. pyannote: mature, torch CPU/CUDA. |
@@ -80,9 +80,9 @@ Two image variants carry this: `writtensound:latest` ships **CPU + Vulkan** buil
 
 Details, repo IDs, sizes, capability matrices and exact download mechanics live in `02-engines-and-models.md`.
 
-## 6. noScribe parity mapping
+## 6. Desktop transcription workflow mapping
 
-| noScribe setting | WrittenSound implementation |
+| Common desktop-app setting | WrittenSound implementation |
 |---|---|
 | Choose audio file(s) | Upload list + folder drag/drop (+ picker with `webkitdirectory`) |
 | Save transcript as (html/txt/vtt) | Per-job checkboxes: HTML, TXT, SRT, VTT, JSON |

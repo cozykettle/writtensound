@@ -1,6 +1,6 @@
 # WrittenSound — Frontend / UI Specification
 
-Plain server-rendered pages (Jinja2) upgraded with **htmx** for partial swaps and one `EventSource` connection for live updates. A single hand-rolled `app.js` (< ~500 lines, no framework, no build step) covers upload sequencing, drag-and-drop folder walk, and settings-modal glue. Vendored assets only: `htmx.min.js` (~14 KB), `htmx-ext-sse`, open font optional (system stack). Distinctly **not fancy** — noScribe-like minimalism: flat cards, one accent color, generous spacing, system fonts.
+Plain server-rendered pages (Jinja2) upgraded with **htmx** for partial swaps and one `EventSource` connection for live updates. A single hand-rolled `app.js` (< ~500 lines, no framework, no build step) covers upload sequencing, drag-and-drop folder walk, and settings-modal glue. Vendored assets only: `htmx.min.js` (~14 KB), `htmx-ext-sse`, open font optional (system stack). Distinctly **not fancy** — deliberate minimalism: flat cards, one accent color, generous spacing, system fonts.
 
 Brand constant: `WRITTENSOUND` wordmark = text "WrittenSound" + no icon (keep CSS-only dot accent).
 
@@ -94,7 +94,7 @@ Grid of cards, one per engine (order = registry order):
 ## 7. Styling contract
 
 - htmx + SSE extensions vendored; no CDN.
-- CSS custom props: `--bg #fafafa; --fg #111; --muted #667; --accent #b45309 (noScribe-ish orange); --ok #166534; --warn #b45309; --err #991b1b; --card #fff; --chip #eee; radius 10px; shadow minimal`.
+- CSS custom props: `--bg #fafafa; --fg #111; --muted #667; --accent #b45309 (warm orange); --ok #166534; --warn #b45309; --err #991b1b; --card #fff; --chip #eee; radius 10px; shadow minimal`.
 - One media query breakpoint (900px) collapses to single column; queue table scrolls horizontally on narrow.
 - All interactive elements show `title` tooltips on disabled state (why grey). Focus-visible outline.
 
