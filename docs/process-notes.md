@@ -172,3 +172,18 @@ verified:
 - Verify the Qwen3-ASR and aligner adapters against `transformers`/model output.
 - Run the CUDA image on an NVIDIA host and the standard image on the target
   Intel Arc A380 host.
+
+## GHCR release path (2026-10-24)
+
+- Release builds use GitHub Actions on tag pushes (`v*`) plus manual dispatch.
+  The workflow publishes only the standard CPU + Vulkan target; CUDA remains a
+  local/optional build.
+- `v0.1.0` produced public image tags `latest`, `0.1.0`, `0.1`, and
+  `sha-961fb42` at digest
+  `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`.
+  The public package was pulled anonymously and the container passed its
+  health check.
+- Unraid uses the prebuilt GHCR image through `unraid/writtensound.xml`; the
+  standard image is roughly 3.3 GB locally. Models remain in `/data`.
+- No image tarball is attached to the GitHub release. Public GHCR storage is
+  currently free, and the source repository stays small.
