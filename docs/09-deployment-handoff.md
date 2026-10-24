@@ -105,8 +105,8 @@ This is the durable list when chat context is lost.
 
 | # | Change | Files | Status |
 |---|---|---|---|
-| 1 | Scrub third-party app references from docs, UI, package metadata, and deployment metadata | README, docs, `backend/templates/engines.html`, `pyproject.toml`, `unraid/writtensound.xml` | done `d04c0a0` |
-| 2 | Add the AI-slop warning to the README | `README.md` | done `d04c0a0` |
+| 1 | Scrub third-party app references from docs, UI, package metadata, and deployment metadata | README, docs, `backend/templates/engines.html`, `pyproject.toml`, `unraid/writtensound.xml` | done |
+| 2 | Add the AI-slop warning to the README | `README.md` | done |
 | 3 | *(next requested change)* | | pending |
 
 At the end of a change set, append the decision and verification date to
