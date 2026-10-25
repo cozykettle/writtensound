@@ -174,24 +174,27 @@ def _extract_json(text: str) -> dict[str, Any] | None:
         return value if isinstance(value, dict) else None
     except json.JSONDecodeError:
         pass
-    for line in reversed(text.splitlines()):
-        line = line.strip()
-        if line.startswith("{") and line.endswith("}"):
-            try:
-                value = json.loads(line)
-                if isinstance(value, dict):
-                    return value
-            except json.JSONDecodeError:
-                continue
-    start = text.find("{")
-    end = text.rfind("}")
-    if start >= 0 and end > start:
+
+    # Engine diagnostics (for example the Vulkan shader-cache warning) share
+    # stderr with the JSON document.  Scan for the first complete object instead
+    # of accepting the first single-line object: NeMo emits each word as its own
+    # line, so a line-based fallback can accidentally return only a word record.
+    decoder = json.JSONDecoder()
+    fallback: dict[str, Any] | None = None
+    for index, char in enumerate(text):
+        if char != "{":
+            continue
         try:
-            value = json.loads(text[start : end + 1])
-            return value if isinstance(value, dict) else None
+            value, _ = decoder.raw_decode(text, index)
         except json.JSONDecodeError:
-            return None
-    return None
+            continue
+        if not isinstance(value, dict):
+            continue
+        if any(key in value for key in ("text", "segments", "transcription", "words", "file")):
+            return value
+        if fallback is None:
+            fallback = value
+    return fallback
 
 
 def _segments_from_payload(payload: dict[str, Any]) -> list[Segment]:

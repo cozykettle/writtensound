@@ -1,6 +1,6 @@
 [project]
 name = "writtensound"
-version = "0.1.0"
+version = "0.1.1"
 description = "Self-hosted, local-first speech-to-text with a multi-engine model catalog."
 readme = "README.md"
 license = "MIT"

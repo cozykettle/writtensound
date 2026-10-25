@@ -31,6 +31,14 @@ else
         APP_USER="writtensound"
     fi
 
+    # Vulkan's shader cache uses the passwd home. The runtime image creates the
+    # user without one to keep the image small, so create it at startup.
+    user_home="$(getent passwd "$APP_USER" | cut -d: -f6)"
+    if [ -n "$user_home" ] && [ "$user_home" != "/" ]; then
+        mkdir -p "$user_home"
+        chown "$PUID:$PGID" "$user_home"
+    fi
+
     for device in /dev/dri/card* /dev/dri/renderD*; do
         [ -e "$device" ] || continue
         device_gid="$(stat -c '%g' "$device")"
