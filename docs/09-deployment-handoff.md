@@ -122,7 +122,54 @@ This is the durable list when chat context is lost.
 | 2 | Add the AI-slop warning to the README | `README.md` | done |
 | 3 | Publish the standard CPU + Vulkan image through GitHub Actions to public GHCR and point the Unraid template at it | `.github/workflows/docker.yml`, `unraid/writtensound.xml`, README, docs | done `v0.1.0` |
 | 4 | Fix NeMo JSON parsing after stderr diagnostics and create the runtime home for the Vulkan shader cache | `backend/engines/nemo/adapter.py`, `backend/entrypoint.sh`, `tests/test_nemo_adapter.py` | done `v0.1.1` |
-| 5 | *(next requested change)* | | pending |
+| 5 | Preserve NeMo top-level word timestamps and stop collapsing SRT/VTT to one whole-file cue | `backend/engines/nemo/adapter.py`, `tests/test_nemo_adapter.py`, renderer fixtures | planned `0.2` — not started |
+| 6 | Add the timed-text output format (`[HH:MM:SS.mmm --> HH:MM:SS.mmm] text`) and its settings/API/UI contract | `docs/00`, `docs/03`, `docs/04`, `docs/05`, `backend/jobs.py`, `backend/config.py`, `backend/routes/common.py`, `backend/renderers/__init__.py`, settings template, tests | planned `0.2` — spec amendment first |
+| 7 | Suppress or make optional the `Speaker N:` prefix for single-speaker VTT/timed output | renderers, `docs/04`, `docs/05` | planned `0.2` — decide with 5/6 |
+| 8 | UI overhaul using Impeccable | `backend/templates/`, `backend/static/`, Impeccable `PRODUCT.md`/`DESIGN.md` and surface briefs | planned `0.2` — not started |
+| 9 | Register Impeccable with OpenCode so the UI overhaul can use the skill tool | `~/.config/opencode/skills/impeccable`, `~/.config/opencode/commands/impeccable.md` | done 2026-10-25 |
+
+### 0.2 planning notes (not implemented)
+
+`0.2` combines transcript timestamp correctness with the UI overhaul. No code
+or normative API changes have started.
+
+**Transcript/timestamp work.** The one-cue VTT is a data-loss bug, not a VTT
+limitation: NeMo returns top-level `words[]`, `_segments_from_payload()` ignores
+them, and `_group_cues()` falls back to one plain cue for the single
+`0 → duration` segment. `timestamps_mode=interval` also only checks segment
+starts, so a one-segment file gets one marker. The fix must preserve words and
+group them into cues before adding the new format.
+
+Proposed timed-text contract, to be made normative in the implementing commit:
+`timed_txt` (`{base}.timed.txt`), one line per cue in the form
+`[HH:MM:SS.mmm --> HH:MM:SS.mmm] text`; no SRT indices and no `WEBVTT` header.
+Reuse the SRT/VTT cue grouping when words exist; fall back to ASR segments when
+they do not. Speaker prefix defaults off and is suppressed for one-speaker
+jobs. Treat it as a caption format for validation, so `timestamps_mode=none`
+rejects it rather than silently inventing timestamps.
+
+Acceptance criteria for the transcript work:
+
+- A 26:24 single-speaker Parakeet job produces multiple VTT cues and multiple
+  timed-text lines, never one whole-file cue when word timestamps exist.
+- The NeMo adapter preserves top-level `words[]`; a fixture with warning text
+  plus line-delimited words still parses.
+- `timed_txt` appears in the output manifest and downloads through the existing
+  outputs endpoint.
+- Single-speaker VTT does not repeat `Speaker 1:` on every cue by default.
+- No silent fallback: if an engine has no word timings, segment-level cues are
+  used and the limitation is visible in the job log.
+
+**UI overhaul.** Impeccable skill 4.7.0 / engine v0.1.16 was installed under
+`.github/skills/impeccable` (with `.github/agents` and `.github/hooks`), but
+OpenCode 2.1.3 only discovers `.opencode/skills`, `.claude/skills`,
+`.agents/skills`, or their global equivalents. It is now registered globally at
+`~/.config/opencode/skills/impeccable` (plus
+`~/.config/opencode/commands/impeccable.md`), so OpenCode exposes it through
+the skill tool. `impeccable context` currently reports no `PRODUCT.md`; run its
+init flow before UI work. Do not commit the roughly 20 MB engine binary or the
+global install. Keep the UI overhaul in its own commits after the transcript
+spec is settled.
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.

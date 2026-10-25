@@ -210,3 +210,39 @@ verified:
   UID/GID 99/100, creates `/home/writtensound`, reaches `healthy`, and the
   parser regression was exercised inside the image. The source gates pass with
   34 non-GPU tests.
+
+## 0.2 planning — timestamps, VTT, and Impeccable (2026-10-25)
+
+- **0.2 is planning-only for now.** The scope combines transcript timestamp
+  correctness, the timed-text output format, and the UI overhaul. No code or
+  normative API change has started.
+- **The one-cue VTT is a NeMo data-loss bug.** NeMo returns top-level `words[]`
+  with per-token times, but `_segments_from_payload()` only reads
+  `segments`/`transcription` and falls back to one `0 → duration` segment.
+  `_group_cues()` then takes its word-less path; one speaker adds only the
+  `Speaker 1:` prefix. Word timestamps must be preserved before cue rendering
+  can improve.
+- **Timed text is planned, not normative.** The proposed `timed_txt` format is
+  `[HH:MM:SS.mmm --> HH:MM:SS.mmm] text`, one line per cue, reusing the SRT/VTT
+  grouping when words exist and falling back to ASR segments otherwise. The
+  exact API/UI contract must be added to docs 00/03/04/05 in the implementing
+  commit; until then docs 00–07 remain authoritative and the feature is absent.
+- **Single-speaker labels are noise.** Current VTT prefixes every cue with
+  `Speaker 1:` whenever diarization is enabled, even with one speaker. The
+  planned timed/VTT behavior suppresses the prefix for one speaker or makes it
+  optional; this is a renderer/UI decision, not a diarization change.
+- **Interval timestamps currently use segment starts only.** docs/04 § 4.2
+  describes interval marks at the first word past each interval; a one-segment
+  file therefore gets one mark. This gap is part of the timestamp work, not a
+  reason to reinterpret the format.
+- **Impeccable is now registered with OpenCode.** The skill is 4.7.0 / engine
+  v0.1.16. It was originally installed under `.github/skills/impeccable`;
+  OpenCode 2.1.3 does not scan that path. It was re-installed globally with
+  `--providers=opencode --scope=global --no-hooks` into
+  `~/.config/opencode/skills/impeccable`, and OpenCode now lists it in the
+  `skill` tool. The CLI runs (`impeccable context` reports no `PRODUCT.md`).
+  Run its init flow before UI work; keep the roughly 20 MB engine binary out of
+  Git.
+- **No implementation yet.** The change queue in `docs/09` records the planned
+  order: spec amendment, NeMo word preservation/cue fix, timed-text renderer,
+  then the Impeccable UI overhaul.
