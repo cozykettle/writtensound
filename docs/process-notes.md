@@ -211,11 +211,13 @@ verified:
   parser regression was exercised inside the image. The source gates pass with
   34 non-GPU tests.
 
-## 0.2 planning — timestamps, VTT, and Impeccable (2026-10-25)
+## 0.2 planning — timestamps, VTT, and Impeccable (2026-10-25, historical)
 
-- **0.2 is planning-only for now.** The scope combines transcript timestamp
-  correctness, the timed-text output format, and the UI overhaul. No code or
-  normative API change has started.
+This section records the pre-implementation state and plan; the implementation
+is in the next section.
+
+- **The original scope** combined transcript timestamp correctness, the
+  timed-text output format, and the UI overhaul.
 - **The one-cue VTT is a NeMo data-loss bug.** NeMo returns top-level `words[]`
   with per-token times, but `_segments_from_payload()` only reads
   `segments`/`transcription` and falls back to one `0 → duration` segment.
@@ -271,4 +273,15 @@ verified:
   `Engine and model` select grouped by engine; the read-only queue strip and
   hidden `asr_model_id` are removed. The htmx dependent-field refresh is kept.
 - **Verification:** `ruff`, `mypy`, and 40 non-GPU tests pass. The UI overhaul
-  commit is `a986c26`; the `v0.2.0` tag carries the transcript changes.
+  commit is `a986c26`; the `v0.2.0` tag includes both the UI and transcript
+  changes.
+- **Release:** tag `v0.2.0` built in 9m (Actions run 40233714913) and published
+  `latest`, `0.2.0`, `0.2`, and `sha-f0a1126` at digest
+  `sha256:d4f56f8a0a4cd5a8ddaf79a286f6a4a62d625f32d908f164b1d2678f983dce43`.
+  Registry manifests for all four tags match. The source app smoke test on port
+  8098 reported `0.2.0` with the model selector and Timed text option. Docker's
+  pull path on this Windows host failed with `tls: bad record MAC`; `crane`
+  fetched the same digest and `docker load` completed the container check. The
+  app process ran as UID/GID 99/100, the healthcheck reached `healthy`,
+  `/healthz` returned 200, and the queue page reported `0.2.0` with the model
+  selector and Timed text option.

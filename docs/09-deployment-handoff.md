@@ -11,10 +11,10 @@ is still owned by docs 00-08.
 - `writtensound:standard` was built and smoke-tested: CPU torch
   `2.9.1+cpu`, both pinned engine binaries answer `--help`, the demo job
   produced the default five output formats, and the container ran as UID/GID 99/100.
-- `v0.2.0` source adds NeMo word preservation, multi-cue captions, timed text,
+- `v0.2.0` adds NeMo word preservation, multi-cue captions, timed text,
   single-speaker label suppression, word-boundary interval markers, and the
-  restored Add jobs engine/model selector. The compact UI overhaul is in
-  `a986c26`; the transcript changes are in the `v0.2.0` tag.
+  restored Add jobs engine/model selector. The compact UI overhaul is
+  `a986c26`; the `v0.2.0` tag adds the transcript changes on top.
 - Tag `v0.1.0` was built by GitHub Actions in 8m21s and published publicly to
   GHCR as `ghcr.io/cozykettle/writtensound:latest` (digest
   `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`).
@@ -24,6 +24,13 @@ is still owned by docs 00-08.
   The image starts as UID/GID 99/100, creates `/home/writtensound` for the
   Vulkan shader cache, reaches `healthy`, and parses a NeMo transcript preceded
   by the shader warning and line-delimited `words` output.
+- Tag `v0.2.0` was built by GitHub Actions in 9m and published `latest`,
+  `0.2.0`, `0.2`, and `sha-f0a1126` (digest
+  `sha256:d4f56f8a0a4cd5a8ddaf79a286f6a4a62d625f32d908f164b1d2678f983dce43`).
+  Registry manifests for all four tags resolve to that digest. The container
+  started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from
+  `/healthz`, and served the queue page reporting `0.2.0` with the model
+  selector and timed-text option.
 - Docker Desktop on Windows cannot pass `/dev/dri`; use
   `docker-compose.cpu.yml` there. CPU + the demo engine are the supported
   Windows test path.
