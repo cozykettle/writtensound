@@ -11,6 +11,7 @@ from backend.renderers import (
     render_html,
     render_json,
     render_srt,
+    render_timed_txt,
     render_txt,
     render_vtt,
     srt_ts,
@@ -160,6 +161,77 @@ def test_srt_vtt_cues_and_wordless_segments() -> None:
     assert cues[1].splitlines()[1] == "00:00:01,000 --> 00:00:02,000"
 
 
+def test_single_speaker_captions_do_not_repeat_speaker_one() -> None:
+    segments = [
+        MergedSegment(
+            start=0.0,
+            end=2.0,
+            text="Hello there.",
+            speaker=0,
+            words=[Word(start=0.0, end=0.8, text="Hello"), Word(start=0.9, end=2.0, text="there.")],
+        )
+    ]
+    diar = DiarResult(
+        engine="pyannote",
+        model_id="pyannote-community-1",
+        device="cpu",
+        turns=[DiarTurn(start=0.0, end=2.0, speaker=0)],
+    )
+
+    srt = render_srt(segments, settings(), diar)
+    vtt = render_vtt(segments, settings(), diar)
+    timed = render_timed_txt(segments, settings(), diar)
+
+    assert "Speaker 1:" not in srt
+    assert "Speaker 1:" not in vtt
+    assert "Speaker 1:" not in timed
+    assert "Hello there." in timed
+
+    html = render_html(
+        title="Single speaker",
+        segments=segments,
+        pauses=[],
+        settings=settings(),
+        transcription=transcription(),
+        diar=diar,
+        resolved={"asr_model": "demo-script", "device": "cpu", "compute": "cpu"},
+        version="0.2.0",
+    )
+    assert "<h3>Speaker 1" not in html
+
+
+def test_timed_text_uses_caption_cues_without_indices_or_header() -> None:
+    text = render_timed_txt(merged_segments(), settings(), diar_result())
+
+    assert text == (
+        "[00:00:00.000 --> 00:00:02.250] Speaker 1: Hello there.\n"
+        "[00:00:12.000 --> 00:00:14.250] Speaker 2: General Kenobi.\n"
+    )
+
+
+def test_interval_markers_split_a_long_word_segment() -> None:
+    segment = MergedSegment(
+        start=0.0,
+        end=24.0,
+        text="one two three",
+        speaker=0,
+        words=[
+            Word(start=0.0, end=1.0, text="one"),
+            Word(start=11.0, end=12.0, text="two"),
+            Word(start=22.0, end=23.0, text="three"),
+        ],
+    )
+
+    turn = build_turns([segment], [], settings(interval_s=10))[0]
+
+    assert [paragraph.timestamp for paragraph in turn.paragraphs] == [
+        "00:00:00",
+        "00:00:11",
+        "00:00:22",
+    ]
+    assert turn.timestamp == "00:00:00"
+
+
 def test_json_retains_merged_speaker_overlap_and_settings() -> None:
     payload = json.loads(
         render_json(
@@ -196,6 +268,28 @@ def test_render_all_writes_selected_formats_and_sanitizes_basename(tmp_path: Pat
     names = {path.name for path in written}
     assert names == {"talk one.html", "talk one.srt", "talk one.txt", "talk one.vtt", "ir.json"}
     assert all(path.exists() for path in written)
+
+
+def test_render_all_writes_timed_text_format(tmp_path: Path) -> None:
+    timed_settings = settings(
+        out_basename="talk",
+        output={"html": False, "txt": False, "srt": False, "vtt": False, "timed_txt": True, "json": False},
+    )
+
+    written = render_all(
+        out_dir=tmp_path,
+        title="A talk",
+        segments=merged_segments(),
+        pauses=[],
+        settings=timed_settings,
+        transcription=transcription(),
+        diar=diar_result(),
+        resolved={"asr_model": "demo-script"},
+        version="0.2.0",
+    )
+
+    assert [path.name for path in written] == ["talk.timed.txt"]
+    assert written[0].read_text(encoding="utf-8").startswith("[00:00:00.000 --> ")
 
 
 def test_no_timestamps_mode_omits_markers() -> None:

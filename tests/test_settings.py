@@ -92,3 +92,16 @@ def test_caption_validation_rejects_missing_timestamp_mode(client: TestClient, w
     response = client.post("/api/jobs", json={"items": [{"upload_id": upload_id, "settings": settings}]})
     assert response.status_code == 400
     assert "captions" in response.text.lower()
+
+    timed_only = demo_settings(timestamps_mode="none")
+    timed_only["output"] = {
+        "html": False,
+        "txt": False,
+        "srt": False,
+        "vtt": False,
+        "timed_txt": True,
+        "json": False,
+    }
+    response = client.post("/api/jobs", json={"items": [{"upload_id": upload_id, "settings": timed_only}]})
+    assert response.status_code == 400
+    assert "timed text" in response.text.lower()

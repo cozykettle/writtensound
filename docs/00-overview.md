@@ -14,7 +14,7 @@
 2. For each item (or a selection of items), configure, **per job**:
    - ASR **engine** (faster-whisper / whisper.cpp / Nemotron / Qwen3) and **model**, downloaded from Hugging Face on demand or loaded from an existing GGUF on disk.
    - **Device**: auto / CPU / CUDA / Vulkan, with warnings when a model or engine cannot use a chosen device.
-   - **Output style**: raw text only, timestamps every *N* seconds, timestamps on speaker turns, word-level timestamps, SRT/VTT captions.
+   - **Output style**: raw text only, timestamps every *N* seconds, timestamps on speaker turns, word-level timestamps, SRT/VTT captions, and timed text.
    - **Diarization**: off / NVIDIA Nemotron-3 Diarization / pyannote; optional number of speakers.
    - Additional transcript settings: language + auto-detect (where supported), start/stop range, mark pauses, verbatim/fillers mode (where supported).
 3. A single serial queue processes jobs one at a time and writes all selected output formats to a shared output directory.
@@ -30,7 +30,7 @@
 | G2 | Multiple ASR engines + models, selected in the UI, weights auto-downloaded from HF or loaded from local GGUF. |
 | G3 | GPU flexibility: **Vulkan** (Intel/AMD — A380 primary target) and **CUDA**, with automatic CPU fallback and device warnings. |
 | G4 | Serial queue with per-job settings snapshots, folder/multi-file upload, cancel/retry. |
-| G5 | Complete output set: HTML transcript, TXT, SRT, VTT, JSON (+ pause marking, timestamps, speaker labels). |
+| G5 | Complete output set: HTML transcript, TXT, SRT, VTT, timed text, JSON (+ pause marking, timestamps, speaker labels). |
 | G6 | Zero-config-ish Docker: `docker compose up -d` (or Unraid template) from the repo; models are the only thing downloaded at runtime, on demand, via the UI. |
 | G7 | Everything auditable: precise specs so a coding agent can implement without design decisions on the fly. |
 
@@ -85,7 +85,7 @@ Details, repo IDs, sizes, capability matrices and exact download mechanics live 
 | Common desktop-app setting | WrittenSound implementation |
 |---|---|
 | Choose audio file(s) | Upload list + folder drag/drop (+ picker with `webkitdirectory`) |
-| Save transcript as (html/txt/vtt) | Per-job checkboxes: HTML, TXT, SRT, VTT, JSON |
+| Save transcript as (html/txt/vtt) | Per-job checkboxes: HTML, TXT, SRT, VTT, timed text, JSON |
 | Start/Stop range | `start_at`/`end_at` (hh:mm:ss) → ffmpeg clip |
 | Language + Auto | Language select; greyed if engine lacks auto-detect |
 | Quality (precise/fast) | Replaced by explicit model choice (quality is the model catalog's job). Default model preselect: `whisper.cpp large-v3-turbo-q8_0` for A380 |

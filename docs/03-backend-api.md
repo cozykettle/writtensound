@@ -85,7 +85,8 @@ class Diar(str, Enum): off="off"; nemo="nemo"; pyannote="pyannote"
 class Device(str, Enum): auto="auto"; cpu="cpu"; cuda="cuda"; vulkan="vulkan"
 
 class OutputFormats(BaseModel):
-    html: bool = True; txt: bool = True; srt: bool = True; vtt: bool = False; json: bool = True
+    html: bool = True; txt: bool = True; srt: bool = True
+    vtt: bool = False; timed_txt: bool = False; json: bool = True
 
 class JobSettings(BaseModel):
     schema_version: int = 1
@@ -114,6 +115,7 @@ Validation rules (enforced by pydantic + route checks, error code `invalid_setti
 - `interval_s` int 10..3600.
 - `start_at`/`end_at` regex `^\d{1,2}:\d{2}:\d{2}$`; end > start.
 - At least one output format selected.
+- SRT, VTT, and timed text are caption formats: `timestamps_mode=none` is rejected when any is selected (`invalid_settings`); the UI disables those checkboxes in that mode instead of inventing times.
 - Feature gate errors (server-side re-check of `02 § 5 matrix`): e.g. `word_timestamps=true` requires model capability `native` or aligner installed; `verbatim` requires whisper-family → `error.invalid_settings` with human `message` the UI shows inline.
 
 ## 5. Hardware/engine status report `HardwareStatus`

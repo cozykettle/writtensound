@@ -11,7 +11,7 @@ The project is currently a **working preview**. The demo engine, queue, upload f
 
 - Server-rendered queue with drag-and-drop or file-picker uploads, folder-relative paths, cancellation, retry, per-job settings, and output downloads.
 - A deterministic built-in **Demo** engine for a zero-download end-to-end run.
-- HTML, TXT, SRT, VTT, and merged JSON renderers, including speaker labels, interval and turn timestamps, word-level timing, and pause markers.
+- HTML, TXT, SRT, VTT, timed-text, and merged JSON renderers, including speaker labels, interval and turn timestamps, word-level timing, and pause markers.
 - Engine catalog and model download UI for faster-whisper, whisper.cpp, NeMo-Speech.cpp, Qwen3-ASR, and pyannote.
 - SQLite job/config storage, a single serial worker, SSE queue events, hardware probing, retention cleanup, and optional HTTP Basic auth.
 - A standard Docker image target with CPU + Vulkan engine builds and a CUDA target with CUDA + Vulkan builds.
@@ -25,7 +25,7 @@ uv sync
 uv run writtensound --host 127.0.0.1 --port 8080
 ```
 
-Open <http://127.0.0.1:8080>, select a **Demo** model in the settings form, add a WAV file, and queue it. The demo engine produces a synthetic transcript and all five output formats.
+Open <http://127.0.0.1:8080>, select a **Demo** model in the settings form, add a WAV file, and queue it. The demo engine produces a synthetic transcript and the default HTML, TXT, SRT, VTT, and JSON outputs; select **Timed text** for the extra caption-style format.
 
 For the full local engine stack:
 
@@ -45,7 +45,7 @@ The standard CPU + Vulkan image is built by GitHub Actions and published to the 
 docker pull ghcr.io/cozykettle/writtensound:latest
 ```
 
-Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.1.1` are published alongside `latest`; pin a version if you do not want automatic updates.
+Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.2.0` are published alongside `latest`; pin a version if you do not want automatic updates.
 
 ### Build from source
 
@@ -106,7 +106,7 @@ Engine source tags are pinned in [`docker-build-args.env`](docker-build-args.env
 
 ### Verification status
 
-As of 2026-10-25, the `final-standard` image reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local `0.1.1` container started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and the NeMo parser regression was exercised inside the image. `uv run ruff check .`, `uv run mypy backend`, and the 34 non-GPU tests pass.
+As of 2026-10-25, the `final-standard` image reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local `0.1.1` container started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and the NeMo parser regression was exercised inside the image. The `0.2.0` source tree preserves NeMo top-level word timings, groups captions into multiple cues, adds timed-text output, and splits interval markers at word boundaries; `uv run ruff check .`, `uv run mypy backend`, and the 40 non-GPU tests pass.
 
 The GitHub Actions build published `v0.1.1` to GHCR as `ghcr.io/cozykettle/writtensound:latest` and `0.1.1` (digest `sha256:a844d0d2425ca4f1fdc358b298ffab2eb45a34d6023ee84e4561a13d0ff45f7a`). This fixes parsing NeMo output when a shader-cache warning precedes the JSON and when the `words` array is line-delimited; the entrypoint also creates the runtime user's home so Vulkan can use its shader cache. A real CPU Parakeet TDT v3 run produced transcript text. Full-context Parakeet on the 6 GB Arc A380 still fails with `ErrorOutOfDeviceMemory` (a 7.27 GB Vulkan graph), so use whisper.cpp for long files there. A CUDA target build was attempted; its Python layer installed and asserted `torch 2.9.1+cu128`, but the long nvcc compilation of the CUDA+Vulkan engine stages was stopped on this CPU-only host, so no `writtensound:cuda` image is claimed. See [`docs/process-notes.md`](docs/process-notes.md) for the exact record.
 

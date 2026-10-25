@@ -115,7 +115,7 @@
 
   <section class="transcript">
   {% for turn in turns %}
-    {% if turn.speaker is not none %}
+    {% if show_speakers and turn.speaker is not none %}
     <h3>Speaker {{ turn.speaker + 1 }}{% if turn.timestamp %} <span class="ts">[{{ turn.timestamp }}]</span>{% endif %}</h3>
     {% elif turn.timestamp %}
     <h3>Transcript <span class="ts">[{{ turn.timestamp }}]</span></h3>

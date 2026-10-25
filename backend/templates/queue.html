@@ -13,12 +13,6 @@
 <section class="card setup" id="settings-card" aria-labelledby="setup-title">
   <header class="setup-head">
     <h2 id="setup-title">Add jobs</h2>
-    <div class="engine-strip">
-      <span class="label">Model</span>
-      <span class="engine-strip-value">{{ engine.name }} · {{ model.name }}</span>
-      {% if model_state_by_id.get(model.id, {}).status != 'ready' %}<span class="tag tag-warn">not installed</span>{% endif %}
-      <a href="/engines" title="Select the model on the Engines page">Change</a>
-    </div>
   </header>
 
   <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Drop files here or activate to choose files">

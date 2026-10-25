@@ -243,6 +243,32 @@ verified:
   `skill` tool. The CLI runs (`impeccable context` reports no `PRODUCT.md`).
   Run its init flow before UI work; keep the roughly 20 MB engine binary out of
   Git.
-- **No implementation yet.** The change queue in `docs/09` records the planned
-  order: spec amendment, NeMo word preservation/cue fix, timed-text renderer,
-  then the Impeccable UI overhaul.
+- **Superseded by the implementation section below.** The planning order was
+  spec amendment, NeMo word preservation/cue fix, timed-text renderer, then the
+  Impeccable UI overhaul.
+
+## 0.2 implementation — timestamps, timed text, and selector (2026-10-25)
+
+- **NeMo words are preserved.** The adapter reads top-level `words[]` when
+  `segments[]` is absent, keeps each word's `start`/`end`/`confidence`, and
+  uses the payload text for the segment. It returns a word-less segment only
+  when the payload has no words at all.
+- **Caption grouping is shared.** SRT, VTT, and timed text use the same cue
+  grouping: speaker changes, >1 s gaps, 12 words, or 5 s spans. Without words,
+  ASR segments are the cues. The runner writes a pipeline-log line when caption
+  output falls back to segment boundaries because no word timings exist.
+- **Timed text is normative.** `timed_txt` (`{base}.timed.txt`) is one line per
+  cue: `[HH:MM:SS.mmm --> HH:MM:SS.mmm] text`; no indices, no `WEBVTT` header,
+  no blank line between cues. Settings, API, manifest, download, and UI all
+  include it. `timestamps_mode=none` rejects it with the other captions.
+- **Single-speaker labels are suppressed.** HTML, TXT, SRT, VTT, and timed text
+  omit `Speaker 1`/`Speaker 1:` when the transcript has one speaker.
+  Multi-speaker files retain `Speaker N:` prefixes.
+- **Interval markers split at words.** A long segment is cut into paragraphs at
+  the first word at or after each interval threshold, so a one-segment NeMo
+  transcript gets multiple `[hh:mm:ss]` markers. Turn starts still get markers.
+- **The Add jobs selector is back.** The shared settings form has a visible
+  `Engine and model` select grouped by engine; the read-only queue strip and
+  hidden `asr_model_id` are removed. The htmx dependent-field refresh is kept.
+- **Verification:** `ruff`, `mypy`, and 40 non-GPU tests pass. The UI overhaul
+  commit is `a986c26`; the `v0.2.0` tag carries the transcript changes.

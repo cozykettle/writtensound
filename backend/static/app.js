@@ -210,7 +210,9 @@
 
   function formatTags(job) {
     const out = (job.settings && job.settings.output) || {};
-    return Object.entries(out).filter(([, value]) => value).map(([key]) => key);
+    return Object.entries(out)
+      .filter(([, value]) => value)
+      .map(([key]) => (key === "timed_txt" ? "timed text" : key));
   }
 
   function buildRow(job) {
@@ -532,6 +534,7 @@
         txt: formats.includes("txt"),
         srt: formats.includes("srt"),
         vtt: formats.includes("vtt"),
+        timed_txt: formats.includes("timed_txt"),
         json: formats.includes("json"),
       },
       out_basename: text("out_basename") || null,

@@ -54,10 +54,11 @@ class OutputFormats(BaseModel):
     txt: bool = True
     srt: bool = True
     vtt: bool = False
+    timed_txt: bool = False
     json: bool = True  # type: ignore[assignment]  # normative docs/03 field name
 
     def any(self) -> bool:
-        return any((self.html, self.txt, self.srt, self.vtt, self.json))
+        return any((self.html, self.txt, self.srt, self.vtt, self.timed_txt, self.json))
 
 
 class JobSettings(BaseModel):
@@ -213,8 +214,13 @@ def validate_settings(
     if settings.verbatim and not catalog.is_whisper_family(model):
         raise ApiError("invalid_settings", "Verbatim mode is only available for whisper-family engines.")
 
-    if settings.timestamps_mode == TimestampsMode.none and (settings.output.srt or settings.output.vtt):
-        raise ApiError("invalid_settings", "SRT/VTT captions need a timestamp mode. Choose interval or turns.")
+    if settings.timestamps_mode == TimestampsMode.none and (
+        settings.output.srt or settings.output.vtt or settings.output.timed_txt
+    ):
+        raise ApiError(
+            "invalid_settings",
+            "Captions (SRT, VTT, and timed text) need a timestamp mode. Choose interval or turns.",
+        )
     if settings.diar != Diar.off:
         diar_models = catalog.diar_models_for(settings.diar.value)
         ids = {m.id for m in diar_models}

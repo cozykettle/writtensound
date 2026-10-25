@@ -29,3 +29,27 @@ def test_extract_json_ignores_engine_warning_and_word_lines() -> None:
     assert segments[0].text == "Hello world."
     assert segments[0].start == 0.0
     assert segments[0].end == 2.5
+    assert segments[0].words is not None
+    assert [word.text for word in segments[0].words] == ["Hello", "world."]
+    assert segments[0].words[0].probability == 0.9
+
+
+def test_top_level_words_are_not_collapsed_into_one_text_segment() -> None:
+    payload = {
+        "file": "/data/jobs/example/media/prep.wav",
+        "text": "One two three.",
+        "duration": 31.0,
+        "words": [
+            {"word": "One", "start": 0.0, "end": 1.0},
+            {"word": "two", "start": 11.0, "end": 12.0},
+            {"word": "three.", "start": 22.0, "end": 23.0},
+        ],
+    }
+
+    segments = _segments_from_payload(payload)
+
+    assert len(segments) == 1
+    assert segments[0].start == 0.0
+    assert segments[0].end == 23.0
+    assert segments[0].words is not None
+    assert [word.start for word in segments[0].words] == [0.0, 11.0, 22.0]

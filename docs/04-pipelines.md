@@ -19,7 +19,7 @@ asr         engine adapter → TranscriptionResult (IR below)
 diarize     engine adapter → DiarResult (skipped when off)
 align       word-level info fix-up: attach speaker labels to segments/words;
               optional qwen3-aligner pass when `word_timestamps` needed by engines lacking them
-render      HTML / TXT / SRT / VTT / JSON per settings.output
+render      HTML / TXT / SRT / VTT / timed text / JSON per settings.output
 ```
 
 Stage→progress weights (worker-internal normalization): ingest 2%, prepare 3%, asr 65%, diarize 20%, align 4%, render 6%.
@@ -111,6 +111,7 @@ nemo-speech transcribe {prep_wav} --model {gguf_path} --json \
 ```
 
 - `--language` maps UI code → catalog locale code (en-US, de-DE, …); `auto` allowed. JSON structure verified by S2 (fields to be mapped into `Segment/Word`).
+- Parakeet TDT returns top-level `words[]` without `segments[]`. The adapter maps those words into one `Segment` with its `words` list intact and uses the payload `text` when present; it must not fall back to a word-less `0 → duration` segment. Renderers group the preserved words into cues.
 - `SPIKE S2` — whether per-token timestamps exist for Nemotron RNNT & Parakeet TDT in offline (`transcribe`) mode (TDT appears ability-inherent). If RNNT gives none: catalog marks this engine `word-ts: aligner`.
 - Diarization:
 
@@ -179,8 +180,8 @@ map labels: label(i) = f"Speaker {i+1}" (arrival order = speaker index ascending
 
 ### 4.2 Timestamps rules by `timestamps_mode`
 
-- `none` — raw text only (TXT mode strips all; SRT/VTT impossible → gate rejected in settings validation: emit toast always).
-- `interval` — insert `[hh:mm:ss]` at first word ≥ every N seconds of media time (not per segment), also at each speaker turn start.
+- `none` — raw text only (TXT mode strips all; SRT/VTT/timed text impossible → gate rejected in settings validation: emit toast always).
+- `interval` — insert `[hh:mm:ss]` at the first word at or after every N seconds of media time (not per segment), also at each speaker turn start. A long segment is split into paragraphs at those word boundaries so a one-segment NeMo transcript still gets multiple markers.
 - `turns` — timestamp only at turn starts.
 
 ## 5. Output renderers (each takes `MergedSegment[]`, `pauses`, settings, engine meta)
@@ -189,8 +190,8 @@ Naming: `out_basename` else `media_id`+suffix when clip or collisions (`_clip`)?
 
 ### 5.1 TXT
 
-- One paragraph per segment.
-- Turn boundaries get a blank line + `Speaker N:` prefix when diar used.
+- One paragraph per segment. In interval mode, a segment with word times is split into multiple paragraphs at interval markers (§4.2).
+- Turn boundaries get a blank line + `Speaker N:` prefix when diarization is used and the file has more than one speaker.
 - `timestamps_mode != none` → `[hh:mm:ss]` per §4.2.
 - `mark_pauses` → one dot per second of pause in brackets: `( .)` per second, capped at 5 dots + `(+{N} s)` for longer.
 - Encoding UTF-8, `\n` LF line endings.
@@ -199,21 +200,24 @@ Naming: `out_basename` else `media_id`+suffix when clip or collisions (`_clip`)?
 
 Jinja2 template `out/transcript.html.j2` — self-contained (inline CSS, no remote assets), clean and print friendly:
 - Header block: title (media name), job meta (date ISO, engine, model, device, language, duration, diarizer, version row "WrittenSound vX").
-- Body per speaker turn: `<h3>Speaker N <span>[hh:mm:ss]</span></h3>` (when diar; turn timestamps follow § 4.2 rules), then `<p>` per segment; line numbers in a left gutter via CSS counters.
+- Body per speaker turn: `<h3>Speaker N <span>[hh:mm:ss]</span></h3>` (when diarization produced more than one speaker; turn timestamps follow § 4.2 rules), then `<p>` per segment or interval chunk; line numbers in a left gutter via CSS counters. A single-speaker transcript has no `Speaker 1` heading.
 - Interjection/overlap: reserved class, v1 simply bold-italicize `//…//` when `overlap` segments get wrapped in `<span class=overlap>` (no "//"; separated: Informational note, colored hover) — final UX text decided with preview.
 - Pause dots inline as `( .)` styled muted.
 - `<meta charset>`; reflect dark/bright print.
 
-### 5.3 SRT / 5.4 VTT
+### 5.3 SRT / 5.4 VTT / 5.5 Timed text
 
+- File names: `{base}.srt`, `{base}.vtt`, `{base}.timed.txt`.
 - Word-less source: cues = segments.
 - Word-level present: **caption cue grouping** rule (normative):
   1. start new cue at : speaker turn change OR gap > 1.0 s OR word count ≥ 12 OR cue span ≥ 5.0 s — whichever comes first;
   2. cue.start = first word .START (no rounding BEFORE 1 ms), cue.end = last word end + up to +250 ms (bounded by next cue start − 10 ms);
   3. cue text = words joined by spaces; 1 escape handles special tokens.
-- Indices 1-based `HH:MM:SS,mmm`; VTT: `WEBVTT`, `HH:MM:SS.mmm`, optional `NOTE WrittenSound` header; cues sorted chronologically; overlap handled by interleaving chronological with correct absolute times, not clamping (SRT allows overlapping times in practice; VTT too; UI note suggests care).
+- Speaker prefix: emit `Speaker N: ` only when the file contains more than one speaker. A single-speaker caption has no prefix; do not repeat `Speaker 1:` on every cue.
+- SRT: indices 1-based `HH:MM:SS,mmm`. VTT: `WEBVTT`, optional `NOTE WrittenSound` header, `HH:MM:SS.mmm`. Cues sorted chronologically; overlap handled by interleaving chronological with correct absolute times, not clamping (SRT allows overlapping times in practice; VTT too; UI note suggests care).
+- Timed text: one cue per line, exactly `[HH:MM:SS.mmm --> HH:MM:SS.mmm] text`; no SRT indices, no `WEBVTT` header, no blank line between cues. Reuse the SRT/VTT cue grouping and speaker-prefix rule. Treat it as a caption format: `timestamps_mode=none` rejects it.
 
-### 5.5 JSON
+### 5.6 JSON
 
 ```jsonc
 { "ir": TranscriptionResult-merged list, "diar": DiarResult|null (raw),

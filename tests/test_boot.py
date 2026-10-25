@@ -14,7 +14,9 @@ def test_healthz_and_pages(client: TestClient) -> None:
     assert queue.status_code == 200
     assert "Add jobs" in queue.text
     assert 'id="job-settings-form"' in queue.text
-    assert 'class="engine-strip"' in queue.text
+    assert 'id="asr_model_id"' in queue.text
+    assert 'name="asr_model_id"' in queue.text
+    assert "Timed text" in queue.text
 
     engines = client.get("/engines")
     assert engines.status_code == 200

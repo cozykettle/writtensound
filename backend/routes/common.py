@@ -186,6 +186,7 @@ def form_settings(request: Request, base: JobSettings) -> JobSettings:
             "txt": "txt" in chosen,
             "srt": "srt" in chosen,
             "vtt": "vtt" in chosen,
+            "timed_txt": "timed_txt" in chosen,
             "json": "json" in chosen,
         }
     try:
@@ -258,7 +259,7 @@ def settings_form_context(
             "available_devices": set(state.hardware.devices.keys()),
             "word_ts_available": model.word_ts == "native" or (model.word_ts == "aligner" and aligned),
             "verbatim_available": state.catalog.is_whisper_family(model),
-            "srt_available": settings.timestamps_mode != "none",
+            "captions_available": settings.timestamps_mode != "none",
             "speaker_max": diar_model.max_speakers if diar_model and diar_model.max_speakers else 8,
             "form_id": "job-settings-form" if mode == "queue" else f"job-settings-form-{mode}",
             "runtime_available": engine_available(engine),

@@ -347,6 +347,12 @@ class JobRunner:
             mark_pauses=settings.mark_pauses,
             pause_min_s=settings.pause_min_s,
         )
+        captions = settings.output.srt or settings.output.vtt or settings.output.timed_txt
+        if captions and not any(segment.words for segment in segments):
+            self._log(
+                job_id,
+                "caption output uses ASR segment boundaries; this transcript has no word timings",
+            )
         resolved = {
             "asr_model": model.id,
             "asr_engine": model.engine,

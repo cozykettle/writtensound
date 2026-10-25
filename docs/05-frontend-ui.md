@@ -15,7 +15,7 @@ Brand constant: `WRITTENSOUND` wordmark = text "WrittenSound" + no icon (keep CS
 | `/settings` | `templates/settings.html` | HF token, default job settings, retention, machine, paths |
 | About box | card on `/engines` | version, licenses, data paths |
 
-Model selection lives on **Engines** (per-model `Use`) and **Settings** (defaults form). The queue page shows the configured model as a read-only strip and does not repeat the model picker. One `EventSource` at `/api/events` drives all pages; the top bar shows `CPU`, `Vulkan`, and `CUDA` chips plus `Refresh`.
+Model selection lives on **Engines** (per-model `Use`), **Settings** (defaults form), and the **Add jobs** form on the queue page. The queue selector is grouped by engine and changes the dependent settings without leaving the page. One `EventSource` at `/api/events` drives all pages; the top bar shows `CPU`, `Vulkan`, and `CUDA` chips plus `Refresh`.
 
 ## 2. Queue page layout (single column, top-flow)
 
@@ -25,13 +25,13 @@ Model selection lives on **Engines** (per-model `Use`) and **Settings** (default
 ├ page head ───────────────────────────────────────────────────┤
 │ Queue                                         [N jobs] [Live] │
 ├ Add jobs card ───────────────────────────────────────────────┤
-│ Add jobs                 MODEL whisper.cpp · Large v3 q8_0    │
-│                          [not installed] [Change]              │
+│ Add jobs                                                       │
 │ ┌ drop row ─────────────────────────────────────────────────┐ │
 │ │ Drop files or a folder here         [Choose files] [Choose folder] │
 │ │ Audio or video. Up to 16 GB per file.                    │ │
 │ └───────────────────────────────────────────────────────────┘ │
 │ [warnings strip, only when settings need attention]            │
+│ Engine and model (select grouped by engine)                    │
 │ Device | Language | Speaker labels                            │
 │ Timestamp style | Interval | Pause | timing and filler checks  │
 │ Clip start | Clip stop | Output files                         │
@@ -44,7 +44,7 @@ Model selection lives on **Engines** (per-model `Use`) and **Settings** (default
 └───────────────────────────────────────────────────────────────┘
 ```
 
-The model strip is read-only on this page. `Change` opens `/engines`; the queue form carries `asr_model_id` as a hidden input so every queued job has a complete `JobSettings`.
+The Add jobs form carries a visible `asr_model_id` select grouped by engine, so every queued job has a complete `JobSettings` and the model can change without leaving the queue. The queue table row still shows the model used for each job.
 
 **Queue behaviors (normative):**
 - `Add N to queue` uploads pending files one at a time (sequential client loop with a per-file progress bar), then `POST /api/jobs` with `items[]` and the settings from the form. On success the staged list clears and the page scrolls to the queue.
@@ -61,23 +61,23 @@ The same fragment renders in three modes:
 
 | Mode | Where | Model field | Save control |
 |---|---|---|---|
-| `queue` | Add jobs card on `/` | hidden `asr_model_id` + read-only strip | `Add to queue`; footer `Save as defaults` |
+| `queue` | Add jobs card on `/` | visible model select grouped by engine | `Add to queue`; footer `Save as defaults` |
 | `defaults` | Settings page | model select | `Save defaults` |
 | `job` | edit modal from a pending job | model select | `Save changes` / `Cancel` |
 
-The form re-renders on any control change (`hx-trigger="change delay:180ms"`). Queue and defaults modes swap `#settings-card-body`; job mode swaps `#modal-body`. The response is the whole fragment, so warnings and dependent fields update together. The `Add to queue` button and staged-file panel stay outside the swapped node. Form values survive the swap because the server re-renders from the posted form, and the queue mode re-emits the hidden model value.
+The form re-renders on any control change (`hx-trigger="change delay:180ms"`). Queue and defaults modes swap `#settings-card-body`; job mode swaps `#modal-body`. The response is the whole fragment, so warnings and dependent fields update together. The `Add to queue` button and staged-file panel stay outside the swapped node. Form values survive the swap because the server re-renders from the posted form, including the visible model select.
 
 Controls, in order:
-1. **Model** (defaults/job only): select grouped by engine. Option text shows model name, size, word-timing capability (`words+` / `aligner`), `EN only`, and `not installed` state. The hint shows engine runtime, notes, and an aligner install link when needed.
+1. **Engine and model** (all modes): select grouped by engine. Option text shows model name, size, word-timing capability (`words+` / `aligner`), `EN only`, and `not installed` state. The hint shows engine runtime, notes, and an aligner install link when needed.
 2. **Device**: segmented `Auto | CPU | CUDA | Vulkan`. A device is disabled with a title when the engine has no backend for it or the machine does not expose it. `Auto` hint names the chosen device. A non-auto device hint says a failure stops the job and does not retry on CPU by itself.
 3. **Language**: `Auto-detect` plus catalog language codes. Auto is disabled when the model has no language detection. The hint shows the model language range.
-4. **Speaker labels**: segmented `Off | Nemotron | pyannote`. When on, a speaker-model select and `Auto count | 2…8 speakers` select appear. Counts above the model limit are disabled with a title. The hint explains that `Off` writes no speaker names.
+4. **Speaker labels**: segmented `Off | Nemotron | pyannote`. When on, a speaker-model select and `Auto count | 2…8 speakers` select appear. Counts above the model limit are disabled with a title. The hint explains that `Off` writes no speaker names. HTML, TXT, SRT, VTT, and timed text suppress speaker labels when the job contains only one speaker.
 5. **Timestamp style**: `None (plain text) | Every N seconds and each turn | Each turn`. `Interval (s)` is enabled only for the interval mode. `Pause (s)` is enabled only when word timing exists.
    - `Word timestamps` (disabled without word timing; title explains)
    - `Mark pauses (one dot per second)` (needs word timing)
    - `Keep fillers (um, uh)` (whisper-family only)
 6. **Clip start / Clip stop**: optional `hh:mm:ss` inputs; blank on both means the whole file.
-7. **Output files**: `HTML | TXT | SRT | VTT | JSON`. SRT and VTT require a timestamp style.
+7. **Output files**: `HTML | TXT | SRT | VTT | Timed text | JSON`. SRT, VTT, and timed text require a timestamp style; they are disabled when `Timestamp style` is `None`.
 8. **Advanced**: `File name prefix`; blank uses the audio file name.
 9. **Warnings strip** at the top of the form (`role="status"`): auto-computed warnings from the settings rules (`02 §4`) and missing model/runtime state. The strip is absent when there is nothing to report.
 
@@ -122,7 +122,7 @@ Page head: `Settings` + one-line explanation. The data directory is shown in the
 
 Layout: one column below 1100px; two columns for the lower cards at wider sizes.
 - **Hugging Face token**: password field, masked current value, `Save token`, and `Remove the stored token` when a token is stored. Hint: only gated files need a token; the token is stored as plain text in `app-config.json`; keep the data directory private.
-- **Defaults for new jobs**: the same settings fragment in `defaults` mode, including the model select. `Save defaults` writes the `defaults` object. This is the second place (besides Engines `Use`) where the queue model is chosen.
+- **Defaults for new jobs**: the same settings fragment in `defaults` mode, including the model select. `Save defaults` writes the `defaults` object. This sets the starting model for new queue jobs; Engines `Use` and the Add jobs selector also change it.
 - **Retention**: `Keep finished jobs for [N] days`; `0` keeps all. `Delete staged files after a job is created` checkbox. `Save retention` and `Clean staging now`.
 - **This machine**: image variant, CPU cores, RAM, Vulkan/CUDA availability, device list, hardware notes, `Re-probe`.
 - **Paths**: data, jobs, models, HF cache, database, catalog path. Backup hint: back up the data directory only.

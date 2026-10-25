@@ -10,7 +10,6 @@
   <input type="hidden" name="mark_pauses_present" value="1">
   <input type="hidden" name="verbatim_present" value="1">
   <input type="hidden" name="formats_present" value="1">
-  {% if mode == 'queue' %}<input type="hidden" name="asr_model_id" value="{{ settings.asr_model_id }}">{% endif %}
 
   {% if warnings %}
   <div class="warnings" role="status">
@@ -19,9 +18,8 @@
   </div>
   {% endif %}
 
-  {% if mode != 'queue' %}
-  <div class="field">
-    <label for="asr_model_id">Model</label>
+  <div class="field field-model">
+    <label for="asr_model_id">Engine and model</label>
     <select name="asr_model_id" id="asr_model_id">
       {% for eng in catalog.visible_engines %}
         {% set asr_models = eng.models_for('asr') %}
@@ -44,7 +42,6 @@
       {% endif %}
     </p>
   </div>
-  {% endif %}
 
   <div class="set-grid">
     <div class="field">
@@ -173,10 +170,10 @@
     <div class="field field-span2">
       <span class="label" id="formats-label">Output files</span>
       <div class="checks" role="group" aria-labelledby="formats-label">
-        {% set outmap = {'html': settings.output.html, 'txt': settings.output.txt, 'srt': settings.output.srt, 'vtt': settings.output.vtt, 'json': settings.output.json} %}
-        {% for key, label in [('html', 'HTML'), ('txt', 'TXT'), ('srt', 'SRT'), ('vtt', 'VTT'), ('json', 'JSON')] %}
-        {% set caption_format = key in ['srt', 'vtt'] %}
-        {% set enabled = (not caption_format) or srt_available %}
+        {% set outmap = {'html': settings.output.html, 'txt': settings.output.txt, 'srt': settings.output.srt, 'vtt': settings.output.vtt, 'timed_txt': settings.output.timed_txt, 'json': settings.output.json} %}
+        {% for key, label in [('html', 'HTML'), ('txt', 'TXT'), ('srt', 'SRT'), ('vtt', 'VTT'), ('timed_txt', 'Timed text'), ('json', 'JSON')] %}
+        {% set caption_format = key in ['srt', 'vtt', 'timed_txt'] %}
+        {% set enabled = (not caption_format) or captions_available %}
         <label class="check check-pill {{ 'is-disabled' if not enabled else '' }}" title="{{ '' if enabled else 'Captions need a timestamp style.' }}">
           <input type="checkbox" name="formats" value="{{ key }}" {{ 'checked' if outmap[key] else '' }} {{ 'disabled' if not enabled else '' }}>
           <span>{{ label }}</span>

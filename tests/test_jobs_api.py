@@ -69,6 +69,21 @@ def test_demo_job_end_to_end_outputs_and_logs(client: TestClient, wav_file: byte
     assert [item["id"] for item in listed] == [job_id]
 
 
+def test_timed_text_output_is_manifested_and_downloadable(client: TestClient, wav_file: bytes) -> None:
+    timed = demo_settings()
+    timed["output"]["timed_txt"] = True
+    job_id = queue_one(client, wav_file, settings=timed)
+    data = wait_for_terminal(client, job_id)
+    assert data["status"] == "succeeded", data
+
+    names = {item["name"] for item in data["outputs_manifest"]}
+    assert "tour.timed.txt" in names
+    response = client.get(f"/api/jobs/{job_id}/outputs/tour.timed.txt")
+    assert response.status_code == 200
+    assert response.text.startswith("[")
+    assert " --> " in response.text
+
+
 def test_pending_job_edit_cancel_and_retry(client: TestClient, wav_file: bytes, app) -> None:
     state = app.state.app_state
     state.runner.stop()

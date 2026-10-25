@@ -197,30 +197,62 @@ def _extract_json(text: str) -> dict[str, Any] | None:
     return fallback
 
 
+def _words_from_tokens(tokens: Any) -> list[Word]:
+    words: list[Word] = []
+    if not isinstance(tokens, list):
+        return words
+    for token in tokens:
+        if not isinstance(token, dict):
+            continue
+        token_start, token_end = _times(token)
+        token_text = str(token.get("text") or token.get("word") or "").strip()
+        if token_text:
+            words.append(
+                Word(
+                    start=token_start,
+                    end=token_end,
+                    text=token_text,
+                    probability=_float(
+                        token.get("probability")
+                        or token.get("confidence")
+                        or token.get("p")
+                    ),
+                )
+            )
+    return words
+
+
 def _segments_from_payload(payload: dict[str, Any]) -> list[Segment]:
     raw = payload.get("segments") or payload.get("transcription") or []
     segments: list[Segment] = []
+    if not isinstance(raw, list):
+        raw = []
     for item in raw:
+        if not isinstance(item, dict):
+            continue
         start, end = _times(item)
         text = str(item.get("text") or item.get("transcript") or "").strip()
-        words: list[Word] = []
-        for token in item.get("words") or item.get("tokens") or []:
-            token_start, token_end = _times(token)
-            token_text = str(token.get("text") or token.get("word") or "").strip()
-            if token_text:
-                words.append(
-                    Word(
-                        start=token_start,
-                        end=token_end,
-                        text=token_text,
-                        probability=_float(token.get("probability") or token.get("p")),
-                    )
-                )
+        words = _words_from_tokens(item.get("words") or item.get("tokens") or [])
         if text or words:
             segments.append(Segment(start=start, end=end, text=text, words=words or None))
-    if not segments and isinstance(payload.get("text"), str):
-        segments.append(Segment(start=0.0, end=float(payload.get("duration") or 0.0), text=str(payload["text"])))
-    return segments
+    if segments:
+        return segments
+
+    # NeMo Parakeet emits top-level words and no segments.  Keep those word
+    # times instead of collapsing to one text-only 0 → duration segment.
+    words = _words_from_tokens(payload.get("words") or [])
+    text = str(payload.get("text") or "").strip()
+    if words:
+        starts = [word.start for word in words if word.start is not None]
+        ends = [word.end for word in words if word.end is not None]
+        start = min(starts) if starts else 0.0
+        end = max(ends) if ends else float(payload.get("duration") or 0.0)
+        if not text:
+            text = " ".join(word.text for word in words)
+        return [Segment(start=start, end=end, text=text, words=words)]
+    if text:
+        return [Segment(start=0.0, end=float(payload.get("duration") or 0.0), text=text)]
+    return []
 
 
 def _raw_turns(payload: dict[str, Any]) -> list[Any]:
