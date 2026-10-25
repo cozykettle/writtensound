@@ -187,3 +187,26 @@ verified:
   standard image is roughly 3.3 GB locally. Models remain in `/data`.
 - No image tarball is attached to the GitHub release. Public GHCR storage is
   currently free, and the source repository stays small.
+
+## NeMo runtime fixes (2026-10-25)
+
+- NeMo writes a plain-text shader-cache warning to stderr before its JSON
+  result. Its `words` array also emits one JSON object per line. The previous
+  line-based JSON fallback could return the last word object instead of the
+  transcript, which surfaced as `nemo-speech produced no transcript segments`
+  even when the CPU transcription succeeded. The parser now scans for the first
+  complete transcript-shaped object.
+- The runtime user is created without a home directory, so Vulkan logged
+  `Failed to create /home/writtensound for shader cache (Permission denied)`.
+  The entrypoint now creates and owns the passwd home before dropping
+  privileges; the warning is non-fatal but disabling the cache costs speed.
+- Parakeet TDT v3 is offline/full-utterance. On the 6 GB Arc A380 a real file
+  requested a 7.27 GB Vulkan graph and failed with `ErrorOutOfDeviceMemory`.
+  Use whisper.cpp for long files on the A380, or chunk NeMo input; do not
+  describe Parakeet full-context Vulkan as A380-compatible without chunking.
+- `v0.1.1` published `latest`, `0.1.1`, `0.1`, and `sha-e75f3a7` at digest
+  `sha256:a844d0d2425ca4f1fdc358b298ffab2eb45a34d6023ee84e4561a13d0ff45f7a`;
+  the release has no assets. The image reports version `0.1.1`, starts as
+  UID/GID 99/100, creates `/home/writtensound`, reaches `healthy`, and the
+  parser regression was exercised inside the image. The source gates pass with
+  34 non-GPU tests.

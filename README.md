@@ -45,7 +45,7 @@ The standard CPU + Vulkan image is built by GitHub Actions and published to the 
 docker pull ghcr.io/cozykettle/writtensound:latest
 ```
 
-Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.1.0` are published alongside `latest`; pin a version if you do not want automatic updates.
+Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.1.1` are published alongside `latest`; pin a version if you do not want automatic updates.
 
 ### Build from source
 
@@ -106,9 +106,9 @@ Engine source tags are pinned in [`docker-build-args.env`](docker-build-args.env
 
 ### Verification status
 
-As of 2026-10-24, the `final-standard` image was built on Docker 29.9.2 / Linux x86_64 (3.28 GB), reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local container started as UID/GID 99/100, reached `healthy`, and completed an uploaded WAV through the demo engine with HTML, TXT, SRT, VTT, JSON, and log outputs. `uv run ruff check .`, `uv run mypy backend`, and the 33 non-GPU tests pass.
+As of 2026-10-25, the `final-standard` image reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local `0.1.1` container started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and the NeMo parser regression was exercised inside the image. `uv run ruff check .`, `uv run mypy backend`, and the 34 non-GPU tests pass.
 
-The GitHub Actions build published `v0.1.0` to GHCR as `ghcr.io/cozykettle/writtensound:latest` (digest `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`). The public image was pulled anonymously, started as UID/GID 99/100, reached `healthy`, and returned HTTP 200 from `/healthz`; the Engines page served the updated wording. A CUDA target build was attempted; its Python layer installed and asserted `torch 2.9.1+cu128`, but the long nvcc compilation of the CUDA+Vulkan engine stages was stopped on this CPU-only host, so no `writtensound:cuda` image is claimed. See [`docs/process-notes.md`](docs/process-notes.md) for the exact record.
+The GitHub Actions build published `v0.1.1` to GHCR as `ghcr.io/cozykettle/writtensound:latest` and `0.1.1` (digest `sha256:a844d0d2425ca4f1fdc358b298ffab2eb45a34d6023ee84e4561a13d0ff45f7a`). This fixes parsing NeMo output when a shader-cache warning precedes the JSON and when the `words` array is line-delimited; the entrypoint also creates the runtime user's home so Vulkan can use its shader cache. A real CPU Parakeet TDT v3 run produced transcript text. Full-context Parakeet on the 6 GB Arc A380 still fails with `ErrorOutOfDeviceMemory` (a 7.27 GB Vulkan graph), so use whisper.cpp for long files there. A CUDA target build was attempted; its Python layer installed and asserted `torch 2.9.1+cu128`, but the long nvcc compilation of the CUDA+Vulkan engine stages was stopped on this CPU-only host, so no `writtensound:cuda` image is claimed. See [`docs/process-notes.md`](docs/process-notes.md) for the exact record.
 
 ### Security
 

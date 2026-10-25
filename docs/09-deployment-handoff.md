@@ -4,9 +4,9 @@ Use this file when continuing in a fresh agent session. It records the verified
 baseline, where to make changes, and the final Unraid path. Detailed behavior
 is still owned by docs 00-08.
 
-## 1. Current verified baseline (2026-10-24)
+## 1. Current verified baseline (2026-10-25)
 
-- Source gates: `ruff`, `mypy`, and `pytest -m "not gpu"` (33 tests) pass.
+- Source gates: `ruff`, `mypy`, and `pytest -m "not gpu"` (34 tests) pass.
 - `writtensound:standard` was built and smoke-tested: CPU torch
   `2.9.1+cpu`, both pinned engine binaries answer `--help`, the demo job
   produced all five output formats, and the container ran as UID/GID 99/100.
@@ -14,14 +14,22 @@ is still owned by docs 00-08.
   GHCR as `ghcr.io/cozykettle/writtensound:latest` (digest
   `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`).
   An anonymous pull, health check, and updated Engines page were verified.
+- Tag `v0.1.1` published `latest`, `0.1.1`, `0.1`, and `sha-e75f3a7` (digest
+  `sha256:a844d0d2425ca4f1fdc358b298ffab2eb45a34d6023ee84e4561a13d0ff45f7a`).
+  The image starts as UID/GID 99/100, creates `/home/writtensound` for the
+  Vulkan shader cache, reaches `healthy`, and parses a NeMo transcript preceded
+  by the shader warning and line-delimited `words` output.
 - Docker Desktop on Windows cannot pass `/dev/dri`; use
   `docker-compose.cpu.yml` there. CPU + the demo engine are the supported
   Windows test path.
 - CUDA is **not** the release target here. The CUDA Python layer installs
   `torch 2.9.1+cu128`; the full `final-cuda` image was not completed. No
   `writtensound:cuda` image is claimed.
-- Real engine inference, A380 Vulkan execution, and real model weights remain
-  Phase A work; see `docs/process-notes.md`.
+- NeMo-Speech CPU inference produced transcript text on a real Parakeet TDT v3
+  job. Full-context Parakeet on the 6 GB Arc A380 still fails with
+  `ErrorOutOfDeviceMemory` (7.27 GB graph); use whisper.cpp for long A380 jobs.
+  Other real-model inference and A380 Vulkan execution remain Phase A work; see
+  `docs/process-notes.md`.
 
 ## 2. Where requested changes belong
 
@@ -113,7 +121,8 @@ This is the durable list when chat context is lost.
 | 1 | Scrub third-party app references from docs, UI, package metadata, and deployment metadata | README, docs, `backend/templates/engines.html`, `pyproject.toml`, `unraid/writtensound.xml` | done |
 | 2 | Add the AI-slop warning to the README | `README.md` | done |
 | 3 | Publish the standard CPU + Vulkan image through GitHub Actions to public GHCR and point the Unraid template at it | `.github/workflows/docker.yml`, `unraid/writtensound.xml`, README, docs | done `v0.1.0` |
-| 4 | *(next requested change)* | | pending |
+| 4 | Fix NeMo JSON parsing after stderr diagnostics and create the runtime home for the Vulkan shader cache | `backend/engines/nemo/adapter.py`, `backend/entrypoint.sh`, `tests/test_nemo_adapter.py` | done `v0.1.1` |
+| 5 | *(next requested change)* | | pending |
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.

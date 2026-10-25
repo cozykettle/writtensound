@@ -102,7 +102,7 @@ the repository-local `./data` so a fresh checkout works on any host.
 
 Unraid Docker templates point at a prebuilt image; they do not clone a repository or run a build. The repository's [`unraid/writtensound.xml`](../unraid/writtensound.xml) therefore targets the published GHCR image directly.
 
-1. **Recommended — prebuilt image**: use `ghcr.io/cozykettle/writtensound:latest` in the template or Add Container form. The public GHCR package needs no registry login. The template passes `/dev/dri` via `ExtraParams`; remove that field for a CPU-only host. Use a container version tag such as `0.1.0` instead of `latest` when you want deliberate updates.
+1. **Recommended — prebuilt image**: use `ghcr.io/cozykettle/writtensound:latest` in the template or Add Container form. The public GHCR package needs no registry login. The template passes `/dev/dri` via `ExtraParams`; remove that field for a CPU-only host. Use a container version tag such as `0.1.1` instead of `latest` when you want deliberate updates.
 2. **Local build (alternative)**: build on Unraid with `docker build --target final-standard -t writtensound:standard .`, then point the template at `writtensound:standard`. This keeps no registry dependency but uses local build cache and takes substantially longer.
 3. **Docker Compose Manager**: optional for people who prefer compose. A checkout can run `docker compose up -d --build`; the checked-in compose file builds from source unless an image is supplied. It is not required for the Unraid template.
 4. **Intel A380 passthrough**: ensure `intel-iommu=on` and `/dev/dri/renderD128` exists on host; no `LOCALAPP` secret. Host driver: depends on kernel (Linux ≥5.x ships `xe`/`i915`); **mesa-vulkan-drivers inside the container + host ICD (via /dev/dri) is the only requirement** — no host mesa install needed.
@@ -122,7 +122,7 @@ Unraid Docker templates point at a prebuilt image; they do not clone a repositor
 - Trigger: tag push `v*` (release) or `workflow_dispatch` (manual test).
 - Builds `final-standard` on `ubuntu-latest` for `linux/amd64` and pushes to `ghcr.io/cozykettle/writtensound` with:
   - `latest` on version tags;
-  - the semantic version and major/minor tags (for example `0.1.0`, `0.1`);
+  - the semantic version and major/minor tags (for example `0.1.1`, `0.1`);
   - a `sha-<commit>` tag for every build.
 - Authenticates with the built-in `GITHUB_TOKEN` (`packages: write`); no personal access token is stored.
 - The standard package is public and free under GitHub's public-container policy. Do not upload a `docker save` tarball to Releases or Actions artifacts; that duplicates the image and defeats the storage savings.
@@ -140,11 +140,13 @@ Unraid Docker templates point at a prebuilt image; they do not clone a repositor
 | Data dir on disk full | staging cleanup service + retention; consider `WS_DATA_DIR` on bigger share |
 | pyannote bad token | settings page token save; retry download; check two-repo acceptance |
 
-## 8. Verification status (2026-10-24)
+## 8. Verification status (2026-10-25)
 
 - `docker build --target final-standard -t writtensound:standard .` completed on Docker 29.9.2 / Linux x86_64. The image is 3.28 GB, reports `torch 2.9.1+cpu`, and both pinned engine binaries (`whisper-cli` v1.9.5 and `nemo-speech` v0.2.0) answer `--help`.
 - The local standard container starts as UID/GID 99/100, reaches `healthy`, serves the queue and Engines pages, and completed an uploaded WAV through the demo engine with `ir.json`, `tour.html`, `tour.srt`, `tour.txt`, and `tour.vtt` plus pipeline/engine logs.
 - The GitHub Actions workflow built `v0.1.0` in 8m21s and published `ghcr.io/cozykettle/writtensound:latest` plus `0.1.0`, `0.1`, and `sha-961fb42` tags. The package is public; an anonymous pull succeeded and the resulting container reached `healthy` with `/healthz` returning 200. Published digest: `sha256:e95fceeb2efa8b50df3668e437243eae8226c1223b2ce0605e4faed18e98735b`.
-- The CUDA target's Python layer installed `torch 2.9.1+cu128`, installed the expected cu12 NVIDIA wheels, and asserted `torch.version.cuda == "12.8"`. The full `final-cuda` target was stopped during nvcc compilation of the CUDA+Vulkan engine stages on this CPU-only host, so no `writtensound:cuda` image is claimed. CUDA hardware execution, A380/Vulkan execution, and real model inference remain unverified. Do not present those paths as production-verified.
-- `uv run ruff check .`, `uv run mypy backend`, and `uv run pytest -m "not gpu"` (33 tests) pass on the source tree. See [`process-notes.md`](process-notes.md) for the exact record.
+- The GitHub Actions workflow built `v0.1.1` and published `latest`, `0.1.1`, `0.1`, and `sha-e75f3a7`. The public image pulled successfully; the local container started as UID/GID 99/100, created `/home/writtensound` for the Vulkan shader cache, reached `healthy`, and returned HTTP 200 from `/healthz`. Digest: `sha256:a844d0d2425ca4f1fdc358b298ffab2eb45a34d6023ee84e4561a13d0ff45f7a`.
+- The CUDA target's Python layer installed `torch 2.9.1+cu128`, installed the expected cu12 NVIDIA wheels, and asserted `torch.version.cuda == "12.8"`. The full `final-cuda` target was stopped during nvcc compilation of the CUDA+Vulkan engine stages on this CPU-only host, so no `writtensound:cuda` image is claimed. CUDA hardware execution remains unverified.
+- NeMo-Speech CPU inference produced transcript text for a real Parakeet TDT v3 job; the parser regression test covers the stderr warning plus line-delimited `words` output. A380 Vulkan inference is not verified: full-context Parakeet requested a 7.27 GB graph on the 6 GB card and failed with `ErrorOutOfDeviceMemory`. Use whisper.cpp for long A380 jobs.
+- `uv run ruff check .`, `uv run mypy backend`, and `uv run pytest -m "not gpu"` (34 tests) pass on the source tree. See [`process-notes.md`](process-notes.md) for the exact record.
 - The app uses no silent device fallback: a failed engine invocation becomes a visible job error, and the aligner refuses to run until Phase A confirms its CLI contract.
