@@ -101,7 +101,7 @@
       ingest: "reading media",
       prepare: "preparing audio",
       asr: "transcribing",
-      diarize: "separating voices",
+      diarize: "finding speakers",
       align: "aligning words",
       render: "writing files",
     }[stage] || stage || "";
@@ -203,6 +203,11 @@
     return { engine, model };
   }
 
+  function modelName(modelId) {
+    const names = WS.modelNames || {};
+    return names[modelId] || modelId || "—";
+  }
+
   function formatTags(job) {
     const out = (job.settings && job.settings.output) || {};
     return Object.entries(out).filter(([, value]) => value).map(([key]) => key);
@@ -211,21 +216,31 @@
   function buildRow(job) {
     const row = el("tr", `job-row status-${job.status}${job.status === "running" ? " is-running" : ""}`);
     row.dataset.jobId = job.id;
-    row.title = "Click for details";
+    row.title = "Open details";
 
     const titleCell = el("td", "col-title");
     titleCell.append(el("div", "job-title", job.title));
-    const sub = el("div", "job-sub", `${formatDate(job.created_at)} · ${job.kind || "upload"}`);
-    titleCell.append(sub);
-    if (job.status === "running" && job.message) {
-      titleCell.append(el("div", "job-stage", job.message));
-    }
+    titleCell.append(el("div", "job-sub", formatDate(job.created_at)));
     row.append(titleCell);
 
     const statusCell = el("td", "col-status");
     statusCell.append(el("span", `status-pill status-${job.status}`, statusLabel(job.status)));
-    if (job.status === "pending") {
-      statusCell.append(el("div", "job-sub", "waiting for a slot"));
+    if (job.status === "running") {
+      const wrap = el("div", "progress-wrap");
+      const bar = el("div", "progress-bar");
+      const fill = el("span");
+      fill.style.width = `${percent(job)}%`;
+      bar.append(fill);
+      wrap.append(bar);
+      const text = el("div", "progress-text");
+      text.append(el("span", "", stageLabel(job.stage) || "working"));
+      text.append(el("span", "", `${percent(job)}%`));
+      wrap.append(text);
+      statusCell.append(wrap);
+    } else if (job.status === "pending") {
+      statusCell.append(el("div", "job-sub", "waiting for the runner"));
+    } else if (job.status === "succeeded" && job.duration_s) {
+      statusCell.append(el("div", "job-sub", formatDuration(job.duration_s)));
     } else if (job.status === "failed" && job.error && job.error.code) {
       statusCell.append(el("div", "job-sub", job.error.code));
     }
@@ -233,40 +248,17 @@
 
     const engineCell = el("td", "col-engine");
     const info = jobEngine(job);
-    engineCell.append(el("div", "", info.engine || "—"));
-    engineCell.append(el("span", "mono", info.model || "—"));
-    row.append(engineCell);
-
-    const deviceCell = el("td", "col-device");
     const resolved = job.resolved || {};
     const device = resolved.device || (job.settings && job.settings.device) || "auto";
-    deviceCell.append(el("span", "tag", device));
-    if (resolved.compute) deviceCell.append(el("div", "job-sub", resolved.compute));
-    row.append(deviceCell);
+    engineCell.append(el("div", "", modelName(info.model)));
+    engineCell.append(el("span", "mono", `${info.engine || "—"} · ${device}`));
+    row.append(engineCell);
 
     const formatCell = el("td", "col-format");
     const tags = el("div", "format-tags");
     for (const tag of formatTags(job)) tags.append(el("span", "tag", tag));
     formatCell.append(tags);
-    if (job.outputs_manifest && job.outputs_manifest.length) {
-      formatCell.append(el("div", "job-sub", `${job.outputs_manifest.length} file${job.outputs_manifest.length === 1 ? "" : "s"}`));
-    }
     row.append(formatCell);
-
-    const progressCell = el("td", "col-progress");
-    const wrap = el("div", "progress-wrap");
-    const bar = el("div", "progress-bar");
-    const fill = el("span");
-    fill.style.width = `${percent(job)}%`;
-    bar.append(fill);
-    wrap.append(bar);
-    const text = el("div", "progress-text");
-    text.append(el("span", "", `${percent(job)}%`));
-    const stage = job.status === "running" ? stageLabel(job.stage) : statusLabel(job.status);
-    text.append(el("span", "", stage));
-    wrap.append(text);
-    progressCell.append(wrap);
-    row.append(progressCell);
 
     const actions = el("td", "col-actions");
     const holder = el("div", "actions");
@@ -297,7 +289,7 @@
     const row = el("tr", "detail-row");
     row.dataset.detailFor = job.id;
     const cell = el("td");
-    cell.colSpan = 7;
+    cell.colSpan = 5;
     const grid = el("div", "detail-cell");
 
     const left = el("div");
@@ -342,17 +334,21 @@
     }
 
     const right = el("div");
-    right.append(el("h4", "", "Resolved settings"));
+    right.append(el("h4", "", "Settings"));
     const lines = el("div", "settings-chipline");
     const resolved = job.resolved || {};
+    const settings = job.settings || {};
+    const timestampLabel = settings.timestamps_mode === "interval"
+      ? `timestamps: every ${settings.interval_s || 60} s`
+      : settings.timestamps_mode === "turns" ? "timestamps: each turn" : "timestamps: none";
     const tags = [
-      resolved.asr_model || (job.settings && job.settings.asr_model_id),
-      resolved.device || (job.settings && job.settings.device),
+      modelName(resolved.asr_model || settings.asr_model_id),
+      resolved.device || settings.device,
       resolved.compute,
-      job.settings && job.settings.diar !== "off" ? `diar: ${job.settings.diar}` : "no diarization",
-      job.settings ? `timestamps: ${job.settings.timestamps_mode}` : null,
-      job.settings && job.settings.word_timestamps ? "word timing" : null,
-      job.settings && job.settings.mark_pauses ? "pause dots" : null,
+      settings.diar && settings.diar !== "off" ? `speaker labels: ${settings.diar}` : "no speaker labels",
+      timestampLabel,
+      settings.word_timestamps ? "word timing" : null,
+      settings.mark_pauses ? "pause marks" : null,
     ].filter((tag, index, all) => Boolean(tag) && all.indexOf(tag) === index);
     for (const tag of tags) lines.append(el("span", "tag", tag));
     right.append(lines);
@@ -369,7 +365,7 @@
     add("finished", formatDate(job.finished_at));
     add("duration", formatDuration(job.duration_s));
     add("message", job.message || "—");
-    add("clips", `${job.settings && job.settings.start_at ? job.settings.start_at : "start"} → ${job.settings && job.settings.end_at ? job.settings.end_at : "end"}`);
+    add("clip", `${settings.start_at || "start"} → ${settings.end_at || "end"}`);
     right.append(meta);
 
     grid.append(left);
@@ -460,6 +456,19 @@
     } else {
       actions.append(make(data.status === "partial" ? "Resume" : "Install", "model-download", false));
     }
+    if (row.dataset.role === "asr") {
+      if (row.dataset.default === "true") {
+        actions.append(el("span", "pill pill-ok", "default"));
+      } else {
+        const use = el("button", "btn btn-small btn-quiet", "Use");
+        use.type = "button";
+        use.dataset.action = "use-model";
+        use.dataset.model = modelId;
+        use.dataset.label = row.dataset.label || modelId;
+        use.title = "Use this model for new jobs.";
+        actions.append(use);
+      }
+    }
     if (data.status === "partial" && data.last_error) {
       let error = $(".state-error", row);
       if (!error) {
@@ -477,7 +486,8 @@
     if (!chip) return;
     chip.classList.toggle("chip-ok", ok);
     chip.classList.toggle("chip-off", !ok);
-    chip.textContent = ok ? "live" : "offline";
+    chip.textContent = ok ? "Live" : "Offline";
+    chip.title = ok ? "The page receives status updates from the server." : "The page cannot reach the server. It keeps trying.";
   }
 
   /* ------------------------------------------------------------- settings */
@@ -529,7 +539,7 @@
   }
 
   async function saveDefaults(button) {
-    const form = button.closest("form");
+    const form = button.closest("form") || document.getElementById("job-settings-form");
     if (!form) return;
     let settings;
     try {
@@ -546,10 +556,50 @@
       });
       WS.settings = saved.defaults;
       state.settings = saved.defaults;
-      toast("Saved as the default recipe.", "ok");
+      toast("Saved as defaults for new jobs.", "ok");
     } catch (error) {
       toast(error.message, "error");
     } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function useModel(button) {
+    const modelId = button.dataset.model;
+    const label = button.dataset.label || modelId;
+    const current = state.settings || WS.settings || {};
+    if (!modelId || !current.asr_model_id) {
+      toast("The defaults did not load. Reload the page.", "error");
+      return;
+    }
+    const engines = Array.isArray(WS.engines) ? WS.engines : [];
+    const engine = engines.find((item) => (item.models || []).some((model) => model.id === modelId));
+    if (!engine) {
+      toast("The model list did not load. Reload the page.", "error");
+      return;
+    }
+    const enabled = state.engineEnabled[engine.key] ?? engine.enabled;
+    if (!enabled) {
+      toast(`Turn on ${engine.name} before you use its models.`, "error");
+      return;
+    }
+    const supported = Array.isArray(engine.devices) ? engine.devices : [];
+    const device = supported.includes(current.device) ? current.device : "auto";
+    const deviceChanged = device !== current.device;
+    button.disabled = true;
+    try {
+      const next = { ...current, asr_model_id: modelId, device };
+      await request("/api/settings", { method: "PUT", body: JSON.stringify({ defaults: next }) });
+      state.settings = next;
+      WS.settings = next;
+      toast(
+        `${label} is the default model now.${deviceChanged ? " Device changed to Auto." : ""}`,
+        "ok",
+        deviceChanged ? 4200 : 2600,
+      );
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch (error) {
+      toast(error.message, "error");
       button.disabled = false;
     }
   }
@@ -693,6 +743,7 @@
     const jobId = button.dataset.jobId;
     if (action === "refresh-hardware") return refreshHardware(button);
     if (action === "save-defaults") return saveDefaults(button);
+    if (action === "use-model") return useModel(button);
     if (action === "save-token") return saveToken(button);
     if (action === "save-housekeeping") return saveHousekeeping(button);
     if (action === "cleanup") return runCleanup(button);

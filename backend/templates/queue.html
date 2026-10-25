@@ -2,36 +2,33 @@
 {% block title %}Queue — WrittenSound{% endblock %}
 {% block content %}
 
-<section class="hero">
-  <div>
-    <p class="eyebrow">Local speech-to-text, no account required</p>
-    <h1>Give a recording<br><em>a voice.</em></h1>
-    <p class="lede">Drop an interview, a meeting, a field recording, or a whole folder of them. Pick a model, press queue, and let the machine do the listening. Your audio never leaves this machine.</p>
+<header class="page-head">
+  <h1>Queue</h1>
+  <div class="page-actions">
+    <span class="pill pill-quiet" id="queue-count">{{ job_count }} job{{ '' if job_count == 1 else 's' }}</span>
+    <span class="chip chip-quiet" id="live-chip" title="The page receives status updates from the server.">Live</span>
   </div>
-  <div class="hero-mark" aria-hidden="true">
-    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-    <small>listening, quietly</small>
-  </div>
-</section>
+</header>
 
-<section class="card upload-card" aria-labelledby="upload-title">
-  <div class="card-head">
-    <div>
-      <p class="eyebrow">Step one</p>
-      <h2 id="upload-title">Drop files or folders here</h2>
+<section class="card setup" id="settings-card" aria-labelledby="setup-title">
+  <header class="setup-head">
+    <h2 id="setup-title">Add jobs</h2>
+    <div class="engine-strip">
+      <span class="label">Model</span>
+      <span class="engine-strip-value">{{ engine.name }} · {{ model.name }}</span>
+      {% if model_state_by_id.get(model.id, {}).status != 'ready' %}<span class="tag tag-warn">not installed</span>{% endif %}
+      <a href="/engines" title="Select the model on the Engines page">Change</a>
     </div>
-    <span class="pill pill-quiet" id="batch-size">nothing staged yet</span>
-  </div>
+  </header>
 
   <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Drop files here or activate to choose files">
-    <div class="dropzone-glyph" aria-hidden="true">
-      <span></span><span></span><span></span><span></span><span></span>
+    <div class="dropzone-text">
+      <p class="dropzone-main">Drop files or a folder here</p>
+      <p class="dropzone-sub">Audio or video. Up to {{ max_upload_bytes|filesize }} per file.</p>
     </div>
-    <p class="dropzone-main">Drag &amp; drop files or a folder</p>
-    <p class="dropzone-sub">audio and video · wav, mp3, m4a, flac, mp4, mkv, mov, webm…</p>
     <div class="dropzone-actions">
-      <button class="btn" type="button" id="choose-files">Choose files</button>
-      <button class="btn btn-quiet" type="button" id="choose-folder" title="Folder picking works best in Chrome or Edge">Choose folder</button>
+      <button class="btn btn-quiet" type="button" id="choose-files">Choose files</button>
+      <button class="btn btn-quiet" type="button" id="choose-folder" title="Folder selection needs Chrome or Edge.">Choose folder</button>
     </div>
     <input type="file" id="file-input" multiple hidden accept="audio/*,video/*">
     <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
@@ -39,79 +36,54 @@
 
   <div class="file-panel" id="file-panel" hidden>
     <div class="file-panel-head">
-      <span class="label">Staged for this batch</span>
-      <button class="link-btn" type="button" id="clear-batch">clear</button>
+      <span class="label">Staged files</span>
+      <button class="link-btn" type="button" id="clear-batch">Clear</button>
     </div>
     <ul class="file-list" id="file-list"></ul>
-    <div class="file-actions">
-      <span class="hint" id="batch-summary">No files staged.</span>
-      <button class="btn" type="button" id="add-to-queue" disabled>Add 0 to queue</button>
-    </div>
   </div>
-
-  <p class="hint upload-hint">Uploads stream to the server one at a time. Large files are welcome; the default limit is 16 GB per file.
-    Folder picking needs a Chromium-based browser. Without JavaScript, use the fallback form below.</p>
 
   <noscript>
     <form class="fallback-upload" action="/api/uploads/legacy" method="post" enctype="multipart/form-data">
-      <p class="label">No-JavaScript upload</p>
-      <p class="hint">This queues one file with the saved default recipe. To change the recipe first, visit <a href="/settings">Settings</a>.</p>
+      <p class="label">Upload without JavaScript</p>
+      <p class="hint">This form adds one file with the saved defaults. To change the defaults first, open <a href="/settings">Settings</a>.</p>
       <div class="fallback-upload-row">
         <input type="file" name="file" accept="audio/*,video/*" required>
-        <button class="btn" type="submit">Upload and queue</button>
+        <button class="btn" type="submit">Upload and add to queue</button>
       </div>
     </form>
   </noscript>
-</section>
 
-<section class="steps" aria-label="How it works">
-  <div><span class="step-num">01</span><strong>Stage</strong><span>Add one file or a folder tree.</span></div>
-  <div><span class="step-num">02</span><strong>Tune</strong><span>Model, device, speakers, words, captions.</span></div>
-  <div><span class="step-num">03</span><strong>Queue</strong><span>One job at a time, politely.</span></div>
-</section>
-
-<section class="card settings-card" id="settings-card" aria-labelledby="settings-title">
-  <div class="card-head">
-    <div>
-      <p class="eyebrow">Step two</p>
-      <h2 id="settings-title">Make it sound like itself</h2>
-    </div>
-    <span class="pill pill-quiet">applies to files added next</span>
-  </div>
   <div id="settings-card-body">
     {% include "partials/settings_form.html" %}
   </div>
+
+  <footer class="setup-foot">
+    <span class="hint" id="batch-summary">No files staged.</span>
+    <div class="setup-actions">
+      <button class="btn btn-quiet" type="button" data-action="save-defaults" title="Use these values for new jobs.">Save as defaults</button>
+      <button class="btn" type="button" id="add-to-queue" disabled>Add to queue</button>
+    </div>
+  </footer>
 </section>
 
-<section class="queue-section" aria-labelledby="queue-title">
-  <div class="section-head">
-    <div>
-      <p class="eyebrow">Step three</p>
-      <h2 id="queue-title">The queue</h2>
-    </div>
-    <div class="queue-meta">
-      <span class="pill pill-quiet" id="queue-count">{{ job_count }} job{{ '' if job_count == 1 else 's' }}</span>
-      <button class="chip chip-quiet" type="button" id="refresh-hardware-2" title="Re-probe hardware">hardware</button>
-    </div>
-  </div>
+<section class="queue-section" aria-labelledby="queue-heading">
+  <h2 class="sr-only" id="queue-heading">Jobs</h2>
 
   <div class="empty-state" id="queue-empty" {% if jobs %}hidden{% endif %}>
-    <div class="empty-mark" aria-hidden="true">~~~</div>
-    <h3>The room is quiet.</h3>
-    <p>Stage a recording above and add it to the queue. Finished transcripts will appear here, ready to download.</p>
+    <p class="empty-main">No jobs in the queue.</p>
+    <p class="hint">Add files above. Output files appear here when a job is done.</p>
   </div>
 
   <div class="table-wrap" id="queue-wrap" {% if not jobs %}hidden{% endif %}>
     <table class="queue-table">
+      <caption class="sr-only">Jobs in the queue</caption>
       <thead>
         <tr>
-          <th class="col-title">Title</th>
+          <th class="col-title">File</th>
           <th class="col-status">Status</th>
-          <th class="col-engine">Engine / model</th>
-          <th class="col-device">Device</th>
+          <th class="col-engine">Model</th>
           <th class="col-format">Output</th>
-          <th class="col-progress">Progress</th>
-          <th class="col-actions"><span class="sr-only">Actions</span></th>
+          <th class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody id="queue-body"></tbody>
@@ -121,7 +93,7 @@
   <noscript>
     <div class="table-wrap">
       <table class="queue-table">
-        <thead><tr><th>Title</th><th>Status</th><th>Model</th><th>Output</th></tr></thead>
+        <thead><tr><th>File</th><th>Status</th><th>Model</th><th>Output</th></tr></thead>
         <tbody>
           {% for job in jobs %}
           <tr>
@@ -135,8 +107,6 @@
       </table>
     </div>
   </noscript>
-
-  <p class="hint queue-hint">All live updates arrive over one event stream. No polling, no refresh button required.</p>
 </section>
 
 {% endblock %}

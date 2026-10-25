@@ -108,6 +108,11 @@ def page_context(request: Request, state: AppState, active: str) -> dict[str, An
             for model in engine.models
         },
         "max_upload_bytes": state.env.max_upload_bytes,
+        "model_names": {
+            model.id: model.name
+            for engine in state.catalog.visible_engines
+            for model in engine.models
+        },
     }
 
 

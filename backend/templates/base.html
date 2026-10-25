@@ -36,8 +36,8 @@
 </main>
 
 <footer class="footer">
-  <span>WrittenSound v{{ version }} — local words, quietly kept.</span>
-  <span><a href="/engines#about">About &amp; licenses</a> · <a href="https://github.com/ggml-org/whisper.cpp" rel="noreferrer">engines</a></span>
+  <span>WrittenSound v{{ version }} · Local processing. Audio stays on this machine.</span>
+  <span><a href="/engines#about">About and licenses</a></span>
 </footer>
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
@@ -56,6 +56,7 @@
 <script>
   window.WS = window.WS || {};
   window.WS.hardware = {{ hardware.model_dump(mode="json")|tojson }};
+  window.WS.modelNames = {{ model_names|tojson }};
   window.WS.version = {{ version|tojson }};
 </script>
 {% block boot %}{% endblock %}

@@ -142,7 +142,9 @@
     addButton.disabled = uploading || items.length === 0 || failed > 0;
     addButton.textContent = uploading
       ? "Uploading…"
-      : `Add ${items.length || 0} to queue`;
+      : items.length
+        ? `Add ${items.length} to queue`
+        : "Add to queue";
     if (summary) {
       if (!items.length) summary.textContent = "No files staged.";
       else {
@@ -278,8 +280,8 @@
       seen.clear();
       render();
       panel.hidden = true;
-      const queueTitle = document.getElementById("queue-title");
-      if (queueTitle) queueTitle.scrollIntoView({ behavior: "smooth", block: "start" });
+      const queueSection = document.querySelector(".queue-section");
+      if (queueSection) queueSection.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       window.WS.app?.toast(error.message, "error");
     } finally {

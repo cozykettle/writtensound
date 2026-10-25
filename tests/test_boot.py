@@ -12,17 +12,19 @@ def test_healthz_and_pages(client: TestClient) -> None:
 
     queue = client.get("/")
     assert queue.status_code == 200
-    assert "Give a recording" in queue.text
+    assert "Add jobs" in queue.text
     assert 'id="job-settings-form"' in queue.text
+    assert 'class="engine-strip"' in queue.text
 
     engines = client.get("/engines")
     assert engines.status_code == 200
-    assert "Engines &amp; models" in engines.text
+    assert "<h1>Engines</h1>" in engines.text
     assert 'id="engine-demo"' in engines.text
+    assert 'data-action="use-model"' in engines.text
 
     settings = client.get("/settings")
     assert settings.status_code == 200
-    assert "Housekeeping" in settings.text
+    assert "Retention" in settings.text
     assert 'id="job-settings-form-defaults"' in settings.text
 
 
