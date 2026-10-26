@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import io
 from pathlib import Path
 
 import pytest
 
-from backend.engines.qwen3.adapter import _ensure_processor_chat_template
+from backend.engines.qwen3.chat_template import ensure_chat_template
 from backend.jobs import ApiError
 
 
@@ -19,32 +18,38 @@ class DummyProcessor:
         self.tokenizer = DummyTokenizer()
 
 
+def ignore_log(message: str) -> None:
+    pass
+
+
 def test_missing_template_is_restored_from_snapshot(tmp_path: Path) -> None:
     (tmp_path / "chat_template.jinja").write_text("template from disk", encoding="utf-8")
     processor = DummyProcessor()
+    messages: list[str] = []
 
-    _ensure_processor_chat_template(
+    ensure_chat_template(
         processor,
         model_dir=tmp_path,
         repo=None,
         token=None,
-        log=io.StringIO(),
+        log=messages.append,
     )
 
     assert processor.chat_template == "template from disk"
     assert processor.tokenizer.chat_template == "template from disk"
+    assert messages == ["loaded chat template from chat_template.jinja"]
 
 
 def test_tokenizer_template_is_reused_when_processor_lacks_one() -> None:
     processor = DummyProcessor()
     processor.tokenizer.chat_template = "template from tokenizer"
 
-    _ensure_processor_chat_template(
+    ensure_chat_template(
         processor,
         model_dir=Path("unused"),
         repo=None,
         token=None,
-        log=io.StringIO(),
+        log=ignore_log,
     )
 
     assert processor.chat_template == "template from tokenizer"
@@ -63,29 +68,34 @@ def test_missing_template_is_fetched_from_repo(
 
     monkeypatch.setattr(huggingface_hub, "hf_hub_download", fake_download)
     processor = DummyProcessor()
+    messages: list[str] = []
 
-    _ensure_processor_chat_template(
+    ensure_chat_template(
         processor,
         model_dir=tmp_path,
         repo="Qwen/Qwen3-ASR-1.7B-hf",
         token="hf_test",
-        log=io.StringIO(),
+        log=messages.append,
     )
 
     assert calls["repo_id"] == "Qwen/Qwen3-ASR-1.7B-hf"
     assert calls["filename"] == "chat_template.jinja"
     assert calls["token"] == "hf_test"
     assert processor.chat_template == "fetched template"
+    assert messages == [
+        "chat_template.jinja missing; fetching it from Qwen/Qwen3-ASR-1.7B-hf",
+        "loaded chat template from chat_template.jinja",
+    ]
 
 
 def test_missing_template_without_repo_fails_loudly(tmp_path: Path) -> None:
     processor = DummyProcessor()
 
     with pytest.raises(ApiError, match="chat_template.jinja"):
-        _ensure_processor_chat_template(
+        ensure_chat_template(
             processor,
             model_dir=tmp_path,
             repo=None,
             token=None,
-            log=io.StringIO(),
+            log=ignore_log,
         )

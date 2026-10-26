@@ -7,12 +7,14 @@ that spike lands, the adapter fails loudly rather than inventing timings.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
+from ..engines.qwen3.chat_template import ensure_chat_template
 from ..jobs import ApiError
 from .types import Segment, Word
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 ALIGNER_LANGS = {"zh", "en", "yue", "fr", "de", "it", "ja", "ko", "pt", "ru", "es"}
 
@@ -24,6 +26,9 @@ def run_aligner(
     model_dir: Path,
     device: str,
     language: str | None,
+    repo: str | None = None,
+    token: str | None = None,
+    log: Callable[[str], None] | None = None,
     window_s: float = 300.0,
 ) -> list[Segment]:
     if language and language not in ALIGNER_LANGS:
@@ -39,12 +44,22 @@ def run_aligner(
     if not model_dir.exists():
         raise ApiError("engine_crash", f"ForcedAligner model is missing at {model_dir}.")
 
-    log.info("loading forced aligner from %s on %s", model_dir, device)
+    emit = log or (lambda message: logger.info(message))
+    logger.info("loading forced aligner from %s on %s", model_dir, device)
     try:
         processor = AutoProcessor.from_pretrained(str(model_dir))
+        ensure_chat_template(
+            processor,
+            model_dir=model_dir,
+            repo=repo,
+            token=token,
+            log=emit,
+        )
         model = AutoModelForMultimodalLM.from_pretrained(str(model_dir))
         torch_device = "cuda" if device == "cuda" else "cpu"
         model = model.to(torch_device)
+    except ApiError:
+        raise
     except Exception as exc:  # pragma: no cover - requires the real model
         raise ApiError("engine_crash", f"ForcedAligner failed to load: {exc}") from exc
 

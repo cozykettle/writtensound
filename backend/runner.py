@@ -332,6 +332,9 @@ class JobRunner:
                     model_dir=self.downloader.model_dir(aligner_model),
                     device=device,
                     language=transcription.language,
+                    repo=aligner_model.repo,
+                    token=self._engine_context(config).hf_token,
+                    log=lambda message: self._log(job_id, message),
                 )
                 self._stage(job_id, "align", 1.0, "words aligned")
             else:

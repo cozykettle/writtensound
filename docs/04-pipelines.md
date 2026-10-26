@@ -168,6 +168,7 @@ turns = [(turn.start, turn.end, int(label.split("_")[-1])) for turn, _, label in
 - Inputs: wav + CURRENT merged transcript text (ASR output) restricted to alignable segments: chunk the (segment, audio) into ≤300 s windows (5-min model limit), 1-s overlap discarded.
 - Output per window: word → (start, end); assemble full IR words.
 - Languages (11): zh, en, yue, fr, de, it, ja, ko, pt, ru, es. If transcript language ∉ list or auto-detected unknown → warn toast; words stay empty and word-based features fall back to segment times (UI notified, not silent).
+- **Chat template**: when the aligner processor has no template, the loader repairs it from `chat_template.jinja` or fetches that one file for an older snapshot, exactly like the ASR path (§ 3.4). A missing template is a loud `engine_crash`.
 
 ## 4. Merge & post-processing
 
