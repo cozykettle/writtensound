@@ -76,7 +76,7 @@ yet, so Phase A and a scripted real-engine E2E remain open.
 ```toml
 [project]
 name = "writtensound"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.118,<1",

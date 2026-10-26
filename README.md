@@ -45,7 +45,7 @@ The standard CPU + Vulkan image is built by GitHub Actions and published to the 
 docker pull ghcr.io/cozykettle/writtensound:latest
 ```
 
-Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.2.0` are published alongside `latest`; pin a version if you do not want automatic updates.
+Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.3.0` are published alongside `latest`; pin a version if you do not want automatic updates.
 
 ### Build from source
 
@@ -106,7 +106,7 @@ Engine source tags are pinned in [`docker-build-args.env`](docker-build-args.env
 
 ### Verification status
 
-As of 2026-10-25, the `final-standard` image reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local `0.1.1` container started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and the NeMo parser regression was exercised inside the image. The `0.2.0` source tree preserves NeMo top-level word timings, groups captions into multiple cues, adds timed-text output, and splits interval markers at word boundaries; `uv run ruff check .`, `uv run mypy backend`, and the 40 non-GPU tests pass.
+As of 2026-10-25, the `final-standard` image reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local `0.1.1` container started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and the NeMo parser regression was exercised inside the image. The `0.2.0` source tree preserves NeMo top-level word timings, groups captions into multiple cues, adds timed-text output, and splits interval markers at word boundaries; `uv run ruff check .`, `uv run mypy backend`, and the 40 non-GPU tests pass. The `0.3.0` source tree filters whisper.cpp special tokens, merges subword pieces into words, and repairs Qwen3 `chat_template.jinja` for both ASR and the ForcedAligner; the same gates pass with 53 non-GPU tests.
 
 The `v0.2.0` tag workflow published the standard image as `ghcr.io/cozykettle/writtensound:latest`, `0.2.0`, `0.2`, and `sha-f0a1126` (digest `sha256:d4f56f8a0a4cd5a8ddaf79a286f6a4a62d625f32d908f164b1d2678f983dce43`). Registry manifests for all four tags match. The image started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and served `0.2.0` with the restored model selector and Timed text option.
 

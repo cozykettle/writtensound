@@ -311,6 +311,20 @@ is in the next section.
   both ASR sizes and the aligner. The ASR adapter also repairs an older local
   snapshot by fetching the single missing template file, and raises an
   actionable error if that is impossible.
-- **Verification:** `ruff check`, `mypy backend`, and 51 non-GPU tests pass.
-- **No release action.** These fixes are on `main`; the `v0.2.0` tag and image
-  remain unchanged.
+- **The ForcedAligner uses the same repair.** The shared loader helper is used
+  by both the ASR and aligner paths. The runner passes the aligner repo and the
+  effective HF token, and surfaces repair progress in `logs/pipeline.log`, so an
+  older aligner snapshot no longer requires a manual remove/re-download.
+- **Verification:** `ruff check`, `mypy backend`, and 53 non-GPU tests pass.
+- **Release:** included in `v0.3.0`; see the release section below.
+
+## 0.3.0 release (2026-10-25)
+
+- **Version:** `pyproject.toml`, `backend/__init__.py`, and `uv.lock` report
+  `0.3.0`.
+- **Contents:** whisper.cpp special-token filtering and subword merging, Qwen3
+  `chat_template.jinja` repair for ASR and the ForcedAligner, and removal of the
+  destructive `--max-len 1` flag. `v0.2.0` remains published and unchanged.
+- **Verification:** `uv run ruff check .`, `uv run mypy backend`, and
+  `uv run pytest -m "not gpu"` (53 tests) pass on the tagged source tree.
+- **Image:** tag workflow result and digest are appended after the build.
