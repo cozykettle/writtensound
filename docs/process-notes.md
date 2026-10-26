@@ -327,4 +327,10 @@ is in the next section.
   destructive `--max-len 1` flag. `v0.2.0` remains published and unchanged.
 - **Verification:** `uv run ruff check .`, `uv run mypy backend`, and
   `uv run pytest -m "not gpu"` (53 tests) pass on the tagged source tree.
-- **Image:** tag workflow result and digest are appended after the build.
+- **Image:** tag workflow run 40278271970 built in 8m41s and published
+  `latest`, `0.3.0`, `0.3`, and `sha-9b935e1` at digest
+  `sha256:e64334c7f7e4745c1ba086a149881d094fefb3f0702c00104322bda4203f7efc`.
+  Registry manifests for all four tags resolve to that digest. The container
+  started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from
+  `/healthz`, and served the queue page reporting `0.3.0`.
+- **GitHub release:** https://github.com/cozykettle/writtensound/releases/tag/v0.3.0

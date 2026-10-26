@@ -34,6 +34,12 @@ is still owned by docs 00-08.
   started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from
   `/healthz`, and served the queue page reporting `0.2.0` with the model
   selector and timed-text option.
+- Tag `v0.3.0` was built by GitHub Actions in 8m41s and published `latest`,
+  `0.3.0`, `0.3`, and `sha-9b935e1` (digest
+  `sha256:e64334c7f7e4745c1ba086a149881d094fefb3f0702c00104322bda4203f7efc`).
+  Registry manifests for all four tags resolve to that digest. The container
+  started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from
+  `/healthz`, and served the queue page reporting `0.3.0`.
 - Docker Desktop on Windows cannot pass `/dev/dri`; use
   `docker-compose.cpu.yml` there. CPU + the demo engine are the supported
   Windows test path.
@@ -198,8 +204,8 @@ transcripts no longer contain `[_TT_*]`/`[_BEG_]` tokens or split subword
 pieces, and `--max-len 1` is gone. Qwen3 snapshots now include
 `chat_template.jinja`; both the ASR and ForcedAligner loaders repair older
 snapshots by fetching only that file. The source gates pass with 53 non-GPU
-tests. Tag verification is recorded in `docs/process-notes.md` after the image
-build; `v0.2.0` remains published and unchanged.
+tests. Tag verification, including the image digest, is recorded in
+`docs/process-notes.md`; `v0.2.0` remains published and unchanged.
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.
