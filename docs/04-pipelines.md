@@ -92,16 +92,23 @@ Options not exposed in UI v1: `beam_size=1` fixed default, `patience=1.0`, `supp
 whisper-cli -m {ggml_path} -f {prep_wav} \
   --language {auto|code} \
   --output-json-full --output-file {job_dir}/out/{base}.full \
-  --progress    # prints percent lines that the adapter parses SPIKE S1 (exact flag)
-  [GPU flags per device/kernel: e.g. --gpu-device 0 / --no-gpu  → SPIKE S1 exact names]
-  [if word_timestamps: --max-len 1 --token-timestamps?? + --dtw {model-tiny?}  → SPIKE S1]
-  [if verbatim: --prompt "…uh, um —"?? → SPIKE S1 (initial prompt support)]
+  --progress    # prints percent lines that the adapter parses (v1.9.5 name)
+  [GPU flags per device/kernel: --device 0 / --no-gpu]
+  [if verbatim: --prompt "…uh, um —"]
 ```
 
 - stderr captured verbatim into logs; stdout progress lines parsed for the `job` SSE.
-- Adapter converts the full JSON (segments[]→tokens[] with t0/t1 in ms) into `Segment/Word` (t0/1000). Words carry `p` (probability).
+- `--output-json-full` already enables token timestamps in v1.9.5. Do **not**
+  add `--max-len`: it wraps tokens into separate segments and destroys the
+  engine's paragraph boundaries.
+- Adapter converts the full JSON (segments[]→tokens[] with offsets in ms) into
+  `Segment/Word` (offsets/1000). Words carry `p` (probability).
+- whisper.cpp `tokens[]` are subword pieces, not words. Skip special tokens
+  (`[_TT_*]`, `[_BEG_]`, ids at/above EOT) and merge adjacent pieces into words
+  at leading-space boundaries. Otherwise captions contain timestamp markers and
+  text like `un imagin able`.
 - DTW metadata: whisper.cpp requires per-token timestamps enabled AND a `dtw` alignment file matching the mels model on some modes; catalog sets `word-ts` accordingly per S1 finding (input tokens time offsets exist natively with DTW; else fall back to `aligner` capability when qwen3-aligner installed, else `no`).
-- **Vulkan device selection**: `--gpu-device {idx}` `SPIKE S1`; enforce via resolved device index.
+- **Vulkan device selection**: `--device {idx}` (or `--no-gpu` for CPU); enforce via the resolved device index.
 
 ### 3.3 NeMo-Speech.cpp (subprocess `nemo-speech`)
 
@@ -133,6 +140,11 @@ parsed = proc.decode(out_ids, return_format="parsed")[0]   # dict: language, tra
 
 - Long audio: the processor (`lingua`) handles up to? Unclear → own chunking: split wav at silence-ish boundaries every **240 s with 1 s overlap**, transcribe chunks, stitch segments (offset += chunk start; drop <0.3 s overlap dup), report combined `language`.
 - Lexical mapping `translation`/`language auto` per model card list.
+- **Chat template**: the snapshot must contain `chat_template.jinja`; it is a
+  separate file in the Qwen repos. The catalog fetches `*.jinja`, and the
+  adapter restores it for older local snapshots before calling
+  `apply_transcription_request`. A missing template is a loud `engine_crash`,
+  never a silent prompt fallback.
 - **Word timestamps**: NOT natively. When `word_timestamps` or separate `words` required AND `qwen3-aligner` model installed → run align pass (§ 3.6). Else auto-error via gate check (error message leads to engines page).
 
 ### 3.5 pyannote.audio (in-process)

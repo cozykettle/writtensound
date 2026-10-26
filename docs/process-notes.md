@@ -285,3 +285,32 @@ is in the next section.
   app process ran as UID/GID 99/100, the healthcheck reached `healthy`,
   `/healthz` returned 200, and the queue page reported `0.2.0` with the model
   selector and Timed text option.
+
+## Post-0.2 fixes - whisper.cpp tokens and Qwen chat template (2026-10-25)
+
+- **whisper.cpp special tokens are engine protocol, not transcript text.**
+  `--output-json-full` emits timestamp/control tokens (`[_TT_*]`, `[_BEG_]`)
+  in `tokens[]`; treating every token as a `Word` leaked them into captions,
+  timed text, and interval-split HTML. The adapter now drops token ids at or
+  above EOT (50256) and any `[_...]` marker before building words. `merge()`
+  repeats the cleanup defensively so checkpoints written before this fix also
+  render cleanly.
+- **whisper.cpp tokens are subword pieces.** `tokens[]` is not a word list.
+  Adjacent pieces are merged at leading-space boundaries, producing
+  `unimaginable`, `friendliness`, `Don't`, and `foot-washing` instead of token
+  fragments.
+- **`--max-len 1` is destructive and was removed.** In whisper.cpp v1.9.5,
+  `--output-json-full` already enables token timestamps; `--max-len` only wraps
+  the decoder output into one-token segments, which turns paragraph output into
+  token-per-line noise. Paragraphs continue to follow the engine's real segment
+  boundaries, not inferred speaker pauses.
+- **Qwen3's chat template is a separate snapshot file.** The Qwen repos ship
+  `chat_template.jinja` outside `tokenizer_config.json`; the v0.2 snapshot
+  allow-list omitted `*.jinja`, so the processor loaded with no template and
+  `apply_transcription_request` failed. The catalog now fetches `*.jinja` for
+  both ASR sizes and the aligner. The ASR adapter also repairs an older local
+  snapshot by fetching the single missing template file, and raises an
+  actionable error if that is impossible.
+- **Verification:** `ruff check`, `mypy backend`, and 51 non-GPU tests pass.
+- **No release action.** These fixes are on `main`; the `v0.2.0` tag and image
+  remain unchanged.

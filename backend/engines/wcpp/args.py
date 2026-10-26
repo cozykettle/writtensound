@@ -25,7 +25,6 @@ def build_command(
     language: str,
     device: str,
     threads: int,
-    word_timestamps: bool,
     verbatim: bool,
 ) -> list[str]:
     cmd = [
@@ -47,8 +46,9 @@ def build_command(
         cmd.append(NO_GPU_FLAG)
     else:
         cmd += [GPU_DEVICE_FLAG, "0"]
-    if word_timestamps:
-        cmd += ["--max-len", "1"]
+    # --output-json-full already enables token timestamps in whisper.cpp
+    # v1.9.5.  --max-len would wrap every token into its own segment, turning
+    # paragraphs and HTML output into token-per-line noise.
     if verbatim:
         cmd += ["--prompt", "Uh, um, er, ah. Transcribe every filler word exactly as spoken."]
     return cmd

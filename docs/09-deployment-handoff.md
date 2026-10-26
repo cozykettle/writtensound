@@ -141,6 +141,11 @@ This is the durable list when chat context is lost.
 | 9 | Register Impeccable with OpenCode so the UI overhaul can use the skill tool | `~/.config/opencode/skills/impeccable`, `~/.config/opencode/commands/impeccable.md` | done 2026-10-25 |
 | 10 | Restore a visible engine/model selector to the Add jobs form and remove the read-only model strip | `backend/templates/partials/settings_form.html`, `backend/templates/queue.html`, `docs/05`, `tests/test_boot.py` | done `0.2` |
 | 11 | Split interval timestamps at the first word past each interval so long single-segment transcripts get multiple markers | `backend/renderers/__init__.py`, `tests/test_renderers.py`, `docs/04` | done `0.2` |
+| 12 | Filter whisper.cpp special/timestamp tokens and merge subword tokens into words; stop using `--max-len 1`, which wraps tokens into separate segments | `backend/engines/wcpp/adapter.py`, `backend/engines/wcpp/args.py`, `backend/pipeline/merge.py`, `docs/04`, tests | done |
+| 13 | Download Qwen3's separate `chat_template.jinja` (`*.jinja` was excluded from the snapshot allow-list) and repair older Qwen snapshots at load time | `backend/db/catalog.yaml`, `backend/engines/qwen3/adapter.py`, `docs/02`, tests | done |
+
+Rows 12–13 are post-`v0.2.0` fixes on `main`; the released image predates them.
+Rebuild or deploy a newer image before expecting them at runtime.
 
 ### 0.2 implementation notes (2026-10-25)
 

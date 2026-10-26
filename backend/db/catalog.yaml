@@ -213,7 +213,7 @@ engines:
         name: Qwen3-ASR 0.6B
         role: asr
         repo: Qwen/Qwen3-ASR-0.6B-hf
-        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py"] }
+        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py", "*.jinja"] }
         size_bytes: 1000000000
         size_label: ~1.0 GB
         languages: 30 multilingual + 22 Chinese dialects
@@ -224,7 +224,7 @@ engines:
         name: Qwen3-ASR 1.7B
         role: asr
         repo: Qwen/Qwen3-ASR-1.7B-hf
-        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py"] }
+        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py", "*.jinja"] }
         size_bytes: 3400000000
         size_label: ~3.4 GB
         languages: 30 multilingual + 22 Chinese dialects
@@ -282,7 +282,7 @@ engines:
         name: Qwen3 ForcedAligner 0.6B
         role: aligner
         repo: Qwen/Qwen3-ForcedAligner-0.6B-hf
-        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py"] }
+        fetch: { kind: snapshot, allow_patterns: ["*.json", "*.safetensors", "*.txt", "*.model", "*.py", "*.jinja"] }
         size_bytes: 1000000000
         size_label: ~1.0 GB
         languages: Aligns 11 languages

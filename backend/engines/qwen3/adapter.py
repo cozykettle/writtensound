@@ -6,7 +6,7 @@ import importlib
 import tempfile
 import wave
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from ...jobs import ApiError, JobSettings
 from ...pipeline.prep import probe_media
@@ -48,6 +48,16 @@ class Qwen3AsrAdapter:
             log.write(f"loading {model.id} from {model_dir}\n")
             try:
                 processor = transformers.AutoProcessor.from_pretrained(str(model_dir))
+            except Exception as exc:
+                raise ApiError("engine_crash", f"Qwen3-ASR failed to load: {exc}") from exc
+            _ensure_processor_chat_template(
+                processor,
+                model_dir=model_dir,
+                repo=model.repo,
+                token=self.context.hf_token,
+                log=log,
+            )
+            try:
                 pipeline_model = transformers.AutoModelForMultimodalLM.from_pretrained(str(model_dir))
                 torch_device = "cuda" if device == "cuda" else "cpu"
                 pipeline_model = pipeline_model.to(torch_device)
@@ -92,6 +102,66 @@ class Qwen3AsrAdapter:
             media_id=media_id,
             segments=segments,
         )
+
+
+def _ensure_processor_chat_template(
+    processor: Any,
+    *,
+    model_dir: Path,
+    repo: str | None,
+    token: str | None,
+    log: TextIO,
+) -> None:
+    """Repair Qwen snapshots downloaded before ``*.jinja`` was allow-listed.
+
+    Current Transformers stores the Qwen3 chat template in a separate
+    ``chat_template.jinja`` file.  The v0.2 snapshot rules omitted it, so the
+    processor loads with ``chat_template=None`` and every transcription call
+    fails in ``apply_chat_template``.
+    """
+    if getattr(processor, "chat_template", None):
+        return
+    tokenizer = getattr(processor, "tokenizer", None)
+    template = getattr(tokenizer, "chat_template", None)
+    if template:
+        processor.chat_template = template
+        return
+
+    template_path = model_dir / "chat_template.jinja"
+    if not template_path.exists():
+        if not repo:
+            raise ApiError(
+                "engine_crash",
+                f"Qwen3 processor has no chat template and {template_path.name} is missing.",
+            )
+        log.write(f"{template_path.name} missing; fetching it from {repo}\n")
+        try:
+            from huggingface_hub import hf_hub_download
+
+            hf_hub_download(
+                repo_id=repo,
+                filename=template_path.name,
+                local_dir=str(model_dir),
+                token=token,
+            )
+        except Exception as exc:
+            raise ApiError(
+                "engine_crash",
+                f"Qwen3 model is missing {template_path.name} and it could not be fetched: {exc}. "
+                "Remove and re-download the model from the Engines page.",
+            ) from exc
+    try:
+        template = template_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ApiError(
+            "engine_crash",
+            f"Qwen3 chat template could not be read from {template_path}: {exc}",
+        ) from exc
+
+    processor.chat_template = template
+    if tokenizer is not None:
+        tokenizer.chat_template = template
+    log.write(f"loaded chat template from {template_path.name}\n")
 
 
 def _window_starts(duration: float, window: float, overlap: float) -> list[float]:

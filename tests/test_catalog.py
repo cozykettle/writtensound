@@ -65,6 +65,14 @@ def test_default_and_capability_helpers_are_consistent() -> None:
     }
 
 
+def test_qwen_snapshots_fetch_separate_chat_template() -> None:
+    catalog = load_catalog()
+    for model_id in ("qwen3-asr-0.6b", "qwen3-asr-1.7b", "qwen3-aligner-0.6b"):
+        fetch = catalog.model(model_id).fetch
+        assert fetch is not None
+        assert "*.jinja" in fetch.allow_patterns
+
+
 def test_english_only_and_max_speaker_metadata() -> None:
     catalog = load_catalog()
     assert catalog.model("fw-distil-large-v3.5").english_only

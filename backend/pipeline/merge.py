@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 
 from .types import DiarResult, DiarTurn, MergedSegment, Pause, Segment, TranscriptionResult, Word
+
+# whisper.cpp exposes timestamp and control tokens in its full JSON.  They
+# belong to the engine protocol, never to the transcript.  Filtering here also
+# repairs checkpoints created before the adapter learned to skip them.
+SPECIAL_TOKEN_RE = re.compile(r"\[_[A-Za-z0-9_]+\]")
+
+
+def _clean_text(text: str) -> str:
+    return " ".join(SPECIAL_TOKEN_RE.sub(" ", text).split())
 
 
 def _speaker_order(turns: list[DiarTurn]) -> dict[int, int]:
@@ -41,10 +51,20 @@ def merge(
     all_words: list[Word] = []
 
     for segment in transcription.segments:
-        words = segment.words
+        text = _clean_text(segment.text)
+        words: list[Word] = []
+        for word in segment.words or []:
+            word_text = _clean_text(word.text)
+            if not word_text:
+                continue
+            if word_text != word.text:
+                word.text = word_text
+            words.append(word)
         generated = False
         if not words:
-            words = [Word(start=segment.start, end=segment.end, text=segment.text)]
+            if not text:
+                continue
+            words = [Word(start=segment.start, end=segment.end, text=text)]
             generated = True
         assigned: list[Word] = []
         for word in words:
@@ -64,7 +84,7 @@ def merge(
         new_segment = MergedSegment(
             start=segment.start,
             end=segment.end,
-            text=segment.text,
+            text=text,
             words=None if generated else assigned,
             language=segment.language,
             speaker=speaker,

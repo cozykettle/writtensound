@@ -15,6 +15,17 @@ from ..base import CancelFn, EngineContext, JobCancelledError, ProgressFn, find_
 from . import args
 
 PERCENT_RE = re.compile(r"(\d{1,3})%")
+SPECIAL_TOKEN_RE = re.compile(r"^\[_[A-Za-z0-9_]+\]$")
+SPECIAL_TOKEN_ANY_RE = re.compile(r"\[_[A-Za-z0-9_]+\]")
+# Scripts that do not put spaces between words.  Merging their tokens would
+# collapse a whole segment into one caption word, so keep the token pieces.
+UNSPACED_SCRIPT_RE = re.compile(
+    r"[\u0e00-\u0eff\u1000-\u109f\u1780-\u17ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]"
+)
+# whisper.cpp starts its special vocabulary at EOT (50256 on the pinned
+# whisper models).  Full JSON includes those tokens even though the segment
+# text leaves them out.
+SPECIAL_TOKEN_ID = 50256
 
 
 class WhisperCppAdapter:
@@ -52,7 +63,6 @@ class WhisperCppAdapter:
             language=settings.language,
             device=device,
             threads=max(2, (os.cpu_count() or 4) // 2),
-            word_timestamps=settings.word_timestamps or settings.mark_pauses,
             verbatim=settings.verbatim,
         )
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,26 +145,85 @@ def _segments_from_payload(payload: dict[str, Any]) -> list[Segment]:
         offsets = raw.get("offsets") or {}
         start = _ms(offsets.get("from", raw.get("t0", 0)))
         end = _ms(offsets.get("to", raw.get("t1", 0)))
-        text = str(raw.get("text", "")).strip()
+        text = _clean_text(str(raw.get("text", "")))
         tokens = raw.get("tokens") or raw.get("words") or []
-        words: list[Word] = []
-        for token in tokens:
-            token_offsets = token.get("offsets") or {}
-            token_start = token_offsets.get("from", token.get("t0"))
-            token_end = token_offsets.get("to", token.get("t1"))
-            token_text = str(token.get("text", "")).strip()
-            if not token_text:
-                continue
-            words.append(
-                Word(
-                    start=_ms(token_start) if token_start is not None else None,
-                    end=_ms(token_end) if token_end is not None else None,
-                    text=token_text,
-                    probability=token.get("p"),
-                )
-            )
-        segments.append(Segment(start=start, end=end, text=text, words=words or None))
+        words = _words_from_tokens(tokens)
+        if text or words:
+            segments.append(Segment(start=start, end=end, text=text, words=words or None))
     return segments
+
+
+def _words_from_tokens(tokens: Any) -> list[Word]:
+    """Group whisper.cpp subword tokens into words.
+
+    The tokenizer marks a new word with a leading space.  Punctuation and
+    contractions usually arrive as unspaced pieces, so appending them keeps
+    ``Don't``, ``foot-washing``, and ``unimaginable`` intact.
+    """
+    if not isinstance(tokens, list):
+        return []
+    words: list[Word] = []
+    current: Word | None = None
+    for token in tokens:
+        if not isinstance(token, dict) or _is_special_token(token):
+            continue
+        token_text = str(token.get("text", "")).replace("\n", " ")
+        if not token_text or not token_text.strip():
+            continue
+        token_offsets = token.get("offsets") or {}
+        token_start = token_offsets.get("from", token.get("t0"))
+        token_end = token_offsets.get("to", token.get("t1"))
+        start = _ms(token_start) if token_start is not None else None
+        end = _ms(token_end) if token_end is not None else None
+        probability = token.get("p")
+        if token_text[0].isspace():
+            if current is not None:
+                words.append(current)
+            current = Word(
+                start=start,
+                end=end,
+                text=token_text.lstrip(),
+                probability=probability,
+            )
+        elif current is None:
+            current = Word(
+                start=start,
+                end=end,
+                text=token_text.lstrip(),
+                probability=probability,
+            )
+        elif UNSPACED_SCRIPT_RE.search(current.text) or UNSPACED_SCRIPT_RE.search(token_text):
+            words.append(current)
+            current = Word(
+                start=start,
+                end=end,
+                text=token_text.lstrip(),
+                probability=probability,
+            )
+        else:
+            current.text += token_text
+            if end is not None:
+                current.end = end
+            if probability is not None and (
+                current.probability is None or probability < current.probability
+            ):
+                current.probability = probability
+    if current is not None:
+        words.append(current)
+    for word in words:
+        word.text = word.text.strip()
+    return [word for word in words if word.text]
+
+
+def _is_special_token(token: dict[str, Any]) -> bool:
+    token_id = token.get("id")
+    if isinstance(token_id, int) and token_id >= SPECIAL_TOKEN_ID:
+        return True
+    return bool(SPECIAL_TOKEN_RE.fullmatch(str(token.get("text", "")).strip()))
+
+
+def _clean_text(text: str) -> str:
+    return " ".join(SPECIAL_TOKEN_ANY_RE.sub(" ", text).split())
 
 
 def _ms(value: Any) -> float:

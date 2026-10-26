@@ -71,6 +71,11 @@ NeMo runtime extras used internally: Silero VAD (bundled/gguf via the runtime), 
 
 Aligned langs (aligner): zh, en, yue, fr, de, it, ja, ko, pt, ru, es.
 
+Snapshots must also fetch `chat_template.jinja` (`*.jinja` in the catalog
+allow-list). It is a separate file in the Qwen repos, not part of
+`tokenizer_config.json`; without it `apply_transcription_request` fails with
+"processor does not have a chat template".
+
 Warnings: CUDA/CPU only (no Vulkan/torch backend); use the native `transformers`
 `apply_transcription_request` pipeline rather than the separate `qwen-asr` pip
 package where possible (fewer deps, better typing).
@@ -146,7 +151,7 @@ Captions require **segment-level timestamps at minimum** — all engines supply 
 
 | # | What to verify | How |
 |---|---|---|
-| S1 | `whisper-cli -f audio.wav -m m.bin -ojf` output field names for token/word timestamps; confirm flag names on the pinned tag (`--output-json-full`, `--dtw …`, `--max-len 1`, progress hooks) | grep `whisper.h` on the pinned tag + run against jfk.wav |
+| S1 | `whisper-cli -f audio.wav -m m.bin -ojf` output field names for token/word timestamps; confirm flag names on the pinned tag (`--output-json-full`, `--dtw …`, progress hooks). Do not add `--max-len`; it fragments segment boundaries. | grep `whisper.h` on the pinned tag + run against jfk.wav |
 | S2 | `nemo-speech transcribe --json` field schema; whether token/word timestamps exist for Nemotron RNNT and Parakeet TDT; exact `diarize` subcommand + args; `--device vulkan:0` behavior; `--language auto` availability offline | `nemo-speech --help`, `transcribe --help`, `doctor`, run |
 | S3 | faster-whisper 1.2.1 batched-pipeline: exact progress callback API (`log_progress`), word dict shape | small python probe |
 | S4 | `qwen-asr` pip package stability vs raw `transformers` 5.13 path — pick **the transformers path** if accessible & typed; aligner windowing API call pattern | follow model card snippets |

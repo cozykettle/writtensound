@@ -97,6 +97,27 @@ def test_pause_detection_uses_threshold() -> None:
     assert disabled == []
 
 
+def test_special_tokens_are_removed_from_segment_text_and_words() -> None:
+    result = transcription(
+        Segment(
+            start=0.0,
+            end=2.0,
+            text="Hello [_TT_10] world.",
+            words=[
+                Word(start=0.0, end=0.5, text="Hello"),
+                Word(start=0.5, end=0.8, text="[_TT_10]"),
+                Word(start=0.8, end=2.0, text="world."),
+            ],
+        )
+    )
+
+    merged, _ = merge(result, None)
+
+    assert merged[0].text == "Hello world."
+    assert merged[0].words is not None
+    assert [word.text for word in merged[0].words] == ["Hello", "world."]
+
+
 def test_wordless_segment_gets_one_synthetic_word_and_speaker() -> None:
     diar = DiarResult(
         engine="pyannote",
