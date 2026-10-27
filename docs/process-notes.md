@@ -412,4 +412,17 @@ is in the next section.
   `v0.3.0` and `v0.2.0` remain published and unchanged.
 - **Verification:** `uv run ruff check .`, `uv run mypy backend`, and
   `uv run pytest -m "not gpu"` (68 tests) pass on the tagged source tree.
-- **Image:** tag workflow result and digest are appended after the build.
+- **Image:** tag workflow run 40458105813 built in 8m56s and published
+  `latest`, `0.3.1`, `0.3`, and `sha-814eb59` at digest
+  `sha256:ed651b4de76e029a468dfcaf8e9cdc5eea20a282fc174f7d144f82f7331d9800`.
+  Registry manifests for all four tags resolve to that digest. The published
+  image's probe reports `transformers 5.20.2`, `torch 2.9.1+cpu`,
+  `torchaudio 2.9.1+cpu`, `torchcodec 0.9.1`, nagisa, soynlp, pyannote.audio,
+  and a passing torchcodec WAV decode. A real CPU smoke run inside the
+  published image transcribed the 6.69 s clip exactly (`language='en'`) and
+  aligned 16 words. The container started as UID 99, reached `healthy`,
+  returned HTTP 200 from `/healthz`, and served the queue page reporting
+  `0.3.1`. Docker's pull path on this Windows host again failed with `tls: bad
+  record MAC`; `crane` fetched the digest and `docker load` completed the
+  container check.
+- **GitHub release:** https://github.com/cozykettle/writtensound/releases/tag/v0.3.1

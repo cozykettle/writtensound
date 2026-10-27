@@ -50,6 +50,14 @@ is still owned by docs 00-08.
   Registry manifests for all four tags resolve to that digest. The container
   started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from
   `/healthz`, and served the queue page reporting `0.3.0`.
+- Tag `v0.3.1` was built by GitHub Actions in 8m56s and published `latest`,
+  `0.3.1`, `0.3`, and `sha-814eb59` (digest
+  `sha256:ed651b4de76e029a468dfcaf8e9cdc5eea20a282fc174f7d144f82f7331d9800`).
+  Registry manifests for all four tags resolve to that digest. The published
+  image's Qwen probe passed; a real CPU smoke run inside it produced the exact
+  transcript and 16 aligned words. The container started as UID 99, reached
+  `healthy`, returned HTTP 200 from `/healthz`, and served the queue page
+  reporting `0.3.1`.
 - Docker Desktop on Windows cannot pass `/dev/dri`; use
   `docker-compose.cpu.yml` there. CPU + the demo engine are the supported
   Windows test path.
@@ -218,6 +226,18 @@ pieces, and `--max-len 1` is gone. Qwen3 snapshots now include
 snapshots by fetching only that file. The source gates pass with 53 non-GPU
 tests. Tag verification, including the image digest, is recorded in
 `docs/process-notes.md`; `v0.2.0` remains published and unchanged.
+
+**0.3.1 release notes (2026-10-27).** `v0.3.1` fixes Qwen3 in the published
+image. The engines extra pins `torchcodec==0.9.1` for torch 2.9,
+`transformers==5.20.2`, `numpy>=2,<3`, `nagisa==0.3.0`, and `soynlp==0.0.493`;
+both app layers install `libpython3.12` for torchcodec's FFmpeg-6 extension.
+ASR and the aligner pass 16 kHz float32 PCM windows, slice generated tokens
+past the prompt, use the 5.20.2 aligner API with 300 s windowing, and choose
+float32 on CPU or bf16/float16 on CUDA. Image builds now run a Qwen runtime
+probe. The source gates pass with 68 non-GPU tests, and the published image
+reproduced the exact CPU transcript plus 16 aligner words. Tag verification and
+the digest are in `docs/process-notes.md`; `v0.3.0` and `v0.2.0` remain
+published and unchanged.
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.

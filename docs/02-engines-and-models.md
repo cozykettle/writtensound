@@ -65,9 +65,9 @@ NeMo runtime extras used internally: Silero VAD (bundled/gguf via the runtime), 
 
 | id | repo | size | langs | word-ts | notes |
 |---|---|---|---|---|---|
-| `qwen3-asr-0.6b` | `Qwen/Qwen3-ASR-0.6B-hf` | ~1.0 GB | 30 + 22 Cn dialects | via aligner | bf16; cheap |
-| `qwen3-asr-1.7b` | `Qwen/Qwen3-ASR-1.7B-hf` | ~3.4 GB | 30 + 22 Cn dialects | via aligner | SOTA open-source quality (mean WER 5.59) |
-| `qwen3-aligner-0.6b` | `Qwen/Qwen3-ForcedAligner-0.6B-hf` | ~1.0 GB | aligns 11 langs | — | aligns any transcript; **word-timestamp fallback engine** |
+| `qwen3-asr-0.6b` | `Qwen/Qwen3-ASR-0.6B-hf` | ~1.0 GB | 30 + 22 Cn dialects | via aligner | f32 on CPU; bf16/f16 on CUDA |
+| `qwen3-asr-1.7b` | `Qwen/Qwen3-ASR-1.7B-hf` | ~3.4 GB | 30 + 22 Cn dialects | via aligner | SOTA open-source quality (mean WER 5.59); f32 on CPU; bf16/f16 on CUDA |
+| `qwen3-aligner-0.6b` | `Qwen/Qwen3-ForcedAligner-0.6B-hf` | ~1.0 GB | aligns 11 langs | — | aligns any transcript; **word-timestamp fallback engine**; same dtype rule |
 
 Aligned langs (aligner): zh, en, yue, fr, de, it, ja, ko, pt, ru, es.
 
