@@ -1,6 +1,6 @@
 [project]
 name = "writtensound"
-version = "0.3.0"
+version = "0.3.1"
 description = "Self-hosted, local-first speech-to-text with a multi-engine model catalog."
 readme = "README.md"
 license = "MIT"
@@ -22,9 +22,17 @@ dependencies = [
 engines = [
   "faster-whisper==1.2.1",
   "ctranslate2>=4.5,<5",
-  "transformers>=5.13,<6",
+  # Qwen3-ASR/ForcedAligner are pinned as a set: the aligner API and the
+  # torchcodec/torch ABI changed inside the 5.x line. 0.9.1 is the last
+  # torchcodec release built for torch 2.9; 0.17 requires torch >= 2.11.
+  "transformers==5.20.2",
   "torch==2.9.*",
   "torchaudio==2.9.*",
+  "torchcodec==0.9.1",
+  "numpy>=2,<3",
+  # Required by Qwen's word splitter for Japanese and Korean alignment.
+  "nagisa==0.3.0",
+  "soynlp==0.0.493",
   "pyannote.audio>=4.0,<5",
 ]
 dev = [
@@ -33,6 +41,7 @@ dev = [
   "httpx",
   "ruff>=0.14",
   "mypy>=1.18",
+  "numpy>=2,<3",
   "types-aiofiles",
   "types-PyYAML",
 ]

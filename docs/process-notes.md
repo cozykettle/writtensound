@@ -334,3 +334,82 @@ is in the next section.
   started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from
   `/healthz`, and served the queue page reporting `0.3.0`.
 - **GitHub release:** https://github.com/cozykettle/writtensound/releases/tag/v0.3.0
+
+## Post-0.3 fixes - Qwen3 runtime and image dependencies (2026-10-27)
+
+- **The released 0.3.0 image could not run Qwen3 at all.** The first job failed
+  with `[engine_crash] Qwen3-ASR failed on window 1: Could not load this
+  library: .../torchcodec/libtorchcodec_image.so`. pyannote pulls
+  `torchcodec 0.17`, which requires torch 2.11, while the image pins torch
+  2.9.1. `torchcodec==0.9.1` is the last release built for torch 2.9 and is now
+  an explicit engines pin. The lock resolves torch/torchaudio `2.9.1+cpu`,
+  torchcodec `0.9.1`, transformers `5.20.2`, and numpy `2.5.4`.
+- **torchcodec also needs an OS package, not just a Python pin.** After the
+  downgrade the probe still failed, and the FFmpeg-6 extension reported
+  `libpython3.12.so.1.0: cannot open shared object file`. Ubuntu 24.04's
+  `python3-venv` does not install `libpython3.12`; both app layers now apt
+  install it. The build-time probe failed loudly until this was fixed, which is
+  why the broken dependency set did not reach a tag.
+- **Qwen audio must be PCM, not a path.** `apply_transcription_request`
+  accepts a path, but transformers then routes it through torchcodec's audio
+  decoder, which loads the same fragile native extension (and on the first
+  rebuilt image requested `libnvrtc.so.13`). `backend/engines/qwen3/audio.py`
+  reads 16 kHz mono s16le `prep.wav` windows into float32 numpy arrays, and both
+  ASR and the aligner pass those arrays directly. Decoding is shared with the
+  aligner so both engines see identical samples.
+- **Generated tokens include the prompt.** `generate()` returns prompt plus
+  completion; decoding the whole tensor made the processor parse chat-template
+  tokens as transcript. Both paths now slice
+  `output[:, inputs["input_ids"].shape[1]:]` before `decode`.
+- **The pinned transformers 5.20.2 aligner API is different from the one
+  sketched during planning.** The aligner uses
+  `prepare_forced_aligner_inputs(audio=..., transcript=..., language=...)` and
+  `decode_forced_alignment(logits=..., input_ids=..., word_lists=...,
+  timestamp_token_id=...)`. Codes and full names are normalized; `auto` and
+  unsupported languages log and skip instead of crashing. Segments longer than
+  300 s are split into `ceil(span / 300)` windows so neither the model nor the
+  audio tensor is fed an oversized input.
+- **Dtype follows the device, not the checkpoint.** The Qwen snapshots declare
+  bf16. On CPU that fails with `Input type (float) and bias type
+  (c10::BFloat16) should be the same`; on Turing (sm_75) bf16 is not
+  executable. `backend/engines/qwen3/dtype.py` selects float32 on CPU, bf16 on
+  CUDA when `torch.cuda.is_bf16_supported()`, and float16 otherwise, then casts
+  only floating inputs so ids and masks stay integer.
+- **The catalog language list was wrong.** The old `qwen3` list mixed
+  unsupported codes (bn, ur, ta, te, mr, gu, he, uk) with supported ones. It
+  now matches the processor's 30 codes exactly: ar, yue, zh, cs, da, nl, en,
+  fil, fi, fr, de, el, hi, hu, id, it, ja, ko, mk, ms, fa, pl, pt, ro, ru, es,
+  sv, th, tr, vi. The aligner list stays at its 11 languages.
+- **The build now proves the runtime.** `backend/engines/qwen3/runtime.py`
+  checks the pinned versions, imports the Qwen stack plus nagisa/soynlp and
+  pyannote.audio, and decodes a generated WAV through torchcodec. Both
+  `app-standard` and `app-cuda` run it, so a broken Qwen dependency set fails
+  the image build instead of the first user job. The `_series` check compares
+  only major.minor, so `2.9.1+cpu` and `2.9.1+cu128` satisfy `(2, 9)`.
+- **apt downloads were also unreliable.** Several image builds died with
+  `Hash Sum mismatch` on Ubuntu mirrors. All eight `apt-get` invocations now
+  pass `-o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true` in
+  addition to the existing retries.
+- **Verification:** `ruff check`, `mypy backend` (46 files), and 68 non-GPU
+  tests pass. The rebuilt `final-standard` image is 3.54 GB and prints `Qwen3
+  runtime probe ok: transformers 5.20.2, torch 2.9.1+cpu, torchaudio 2.9.1+cpu,
+  torchcodec 0.9.1, nagisa, soynlp, pyannote.audio, torchcodec WAV decode`. A
+  real CPU smoke run inside that image transcribed a 6.69 s clip with
+  Qwen3-ASR-0.6B (exact text, `language='en'`) and aligned 16 words with
+  Qwen3-ForcedAligner-0.6B.
+- **Compatibility:** `v0.3.0` and `v0.2.0` remain published and unchanged;
+  `v0.3.1` is additive.
+- **Release:** included in `v0.3.1`; see the release section below.
+
+## 0.3.1 release (2026-10-27)
+
+- **Version:** `pyproject.toml`, `backend/__init__.py`, and `uv.lock` report
+  `0.3.1`.
+- **Contents:** torchcodec 0.9.1, transformers 5.20.2, numpy 2, nagisa/soynlp,
+  the `libpython3.12` OS package, float32 PCM windows, generated-token slicing,
+  the 5.20.2 aligner API with 300 s windowing, device-driven dtype, the
+  corrected 30-code Qwen language list, and the build-time Qwen runtime probe.
+  `v0.3.0` and `v0.2.0` remain published and unchanged.
+- **Verification:** `uv run ruff check .`, `uv run mypy backend`, and
+  `uv run pytest -m "not gpu"` (68 tests) pass on the tagged source tree.
+- **Image:** tag workflow result and digest are appended after the build.

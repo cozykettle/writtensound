@@ -52,7 +52,7 @@
 | DB | **SQLite** (WAL) single file under a volume | one writer (serial queue), tiny schema, zero ops. |
 | Queue execution | **Single worker thread + subprocess orchestration**, asyncio for SSE/upload only | one job at a time; avoids GPU contention and OOM on 6 GB A380. |
 | C++ engines | **whisper.cpp** (whisper family, GGUF/GGML) and **NVIDIA NeMo-Speech.cpp** (Nemotron ASR + Sortformer/Nemotron-3 diarization, Silero VAD) | The only maintained paths to **Vulkan** for these models; both are CLI-friendly with JSON/structured output; NeMo-Speech.cpp is NVIDIA's official ggml runtime with day-0 model support and a documented vulkan backend (`--device vulkan:0`). |
-| Deep Learning engines | **faster-whisper** (CT2) and **Qwen3-ASR via `transformers>=5.13`** | faster-whisper: fastest CPU/CUDA whisper path, word timestamps, batched mode. Qwen3: top open-source ASR quality (`AutoModelForMultimodalLM`), plus **Qwen3-ForcedAligner** for word timestamps on any transcript. |
+| Deep Learning engines | **faster-whisper** (CT2) and **Qwen3-ASR via pinned `transformers==5.20.2`** | faster-whisper: fastest CPU/CUDA whisper path, word timestamps, batched mode. Qwen3: top open-source ASR quality (`AutoModelForMultimodalLM`), plus **Qwen3-ForcedAligner** for word timestamps on any transcript. |
 | Diarization | **Nemotron-3-Diarization (GGUF via NeMo-Speech.cpp)** and **pyannote** (`community-1`, fallback `3.1`) | Nemotron: 8 speakers, GPU via Vulkan — works on the A380. pyannote: mature, torch CPU/CUDA. |
 | Audio prep | **ffmpeg** (in image) | extract 16 kHz mono WAV for the C++ engines; clipping start/stop ranges. |
 | Auth | Optional HTTP basic auth from `APP_PASSWORD` env | LAN tool; frictionless when unset. |

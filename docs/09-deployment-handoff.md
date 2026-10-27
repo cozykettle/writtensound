@@ -4,13 +4,23 @@ Use this file when continuing in a fresh agent session. It records the verified
 baseline, where to make changes, and the final Unraid path. Detailed behavior
 is still owned by docs 00-08.
 
-## 1. Current verified baseline (2026-10-25)
+## 1. Current verified baseline (2026-10-27)
 
-- Source gates: `ruff`, `mypy`, and `pytest -m "not gpu"` (53 tests) pass on
-  the `v0.3.0` tree.
-- `writtensound:standard` was built and smoke-tested: CPU torch
-  `2.9.1+cpu`, both pinned engine binaries answer `--help`, the demo job
-  produced the default five output formats, and the container ran as UID/GID 99/100.
+- Source gates: `ruff`, `mypy`, and `pytest -m "not gpu"` (68 tests) pass on
+  the `v0.3.1` tree.
+- `writtensound:standard` (0.3.1) was built and smoke-tested: 3.54 GB, CPU
+  torch `2.9.1+cpu`, both pinned engine binaries answer `--help`, the demo job
+  produced the default five output formats, and the container ran as UID/GID
+  99/100. The build-time Qwen probe reports `transformers 5.20.2`, `torch
+  2.9.1+cpu`, `torchaudio 2.9.1+cpu`, `torchcodec 0.9.1`, nagisa, soynlp,
+  pyannote.audio, and a torchcodec WAV decode. A real CPU smoke run inside the
+  image transcribed a 6.69 s clip with Qwen3-ASR-0.6B (exact text,
+  `language='en'`) and aligned 16 words with Qwen3-ForcedAligner-0.6B.
+- `v0.3.1` fixes the released-image Qwen failure: torchcodec 0.9.1,
+  transformers 5.20.2, numpy 2, nagisa/soynlp, the `libpython3.12` OS package,
+  float32 PCM windows, token slicing past the prompt, the 5.20.2 aligner API
+  with segment windowing, and device-driven dtype. `v0.3.0` and `v0.2.0`
+  remain published and unchanged.
 - `v0.3.0` adds whisper.cpp special-token filtering and subword merging, and
   repairs Qwen3 `chat_template.jinja` for both ASR and the ForcedAligner.
   Paragraph output still follows engine segment boundaries.
@@ -153,8 +163,10 @@ This is the durable list when chat context is lost.
 | 12 | Filter whisper.cpp special/timestamp tokens and merge subword tokens into words; stop using `--max-len 1`, which wraps tokens into separate segments | `backend/engines/wcpp/adapter.py`, `backend/engines/wcpp/args.py`, `backend/pipeline/merge.py`, `docs/04`, tests | done `0.3` |
 | 13 | Download Qwen3's separate `chat_template.jinja` (`*.jinja` was excluded from the snapshot allow-list) and repair older Qwen snapshots at load time | `backend/db/catalog.yaml`, `backend/engines/qwen3/adapter.py`, `docs/02`, tests | done `0.3` |
 | 14 | Apply the same chat-template repair when loading the Qwen3 ForcedAligner so older aligner snapshots do not need a manual re-download | `backend/engines/qwen3/chat_template.py`, `backend/pipeline/align.py`, `backend/runner.py`, `docs/02`, `docs/04`, tests | done `0.3` |
+| 15 | Fix the Qwen3 runtime failure in the released image: pin the torch 2.9-compatible torchcodec, exact transformers, numpy 2 and Japanese/Korean splitters; pass PCM windows instead of file paths; slice the generated tokens; update the aligner to the 5.20.2 API | `pyproject.toml`, `uv.lock`, `backend/engines/qwen3/`, `backend/pipeline/align.py`, `backend/db/catalog.yaml`, docs 02/04, tests | done `0.3.1` |
+| 16 | Fail image builds when the Qwen runtime is broken: probe versions, Qwen imports, torchcodec WAV decode, nagisa/soynlp and pyannote in both app layers | `backend/engines/qwen3/runtime.py`, `Dockerfile`, docs 02/06/07 | done `0.3.1` |
 
-Rows 12–14 ship in `v0.3.0`; the `v0.2.0` image predates them.
+Rows 12–14 ship in `v0.3.0`; rows 15–16 ship in `v0.3.1`; the `v0.2.0` image predates them.
 
 ### 0.2 implementation notes (2026-10-25)
 

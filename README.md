@@ -45,7 +45,7 @@ The standard CPU + Vulkan image is built by GitHub Actions and published to the 
 docker pull ghcr.io/cozykettle/writtensound:latest
 ```
 
-Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.3.0` are published alongside `latest`; pin a version if you do not want automatic updates.
+Use this image with `unraid/writtensound.xml` or any Docker host with `/dev/dri` for Intel/AMD Vulkan. The package is public, so Unraid does not need a registry login. Container tags such as `0.3.1` are published alongside `latest`; pin a version if you do not want automatic updates.
 
 ### Build from source
 
@@ -106,7 +106,9 @@ Engine source tags are pinned in [`docker-build-args.env`](docker-build-args.env
 
 ### Verification status
 
-As of 2026-10-25, the `final-standard` image reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local `0.1.1` container started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and the NeMo parser regression was exercised inside the image. The `0.2.0` source tree preserves NeMo top-level word timings, groups captions into multiple cues, adds timed-text output, and splits interval markers at word boundaries; `uv run ruff check .`, `uv run mypy backend`, and the 40 non-GPU tests pass. The `0.3.0` source tree filters whisper.cpp special tokens, merges subword pieces into words, and repairs Qwen3 `chat_template.jinja` for both ASR and the ForcedAligner; the same gates pass with 53 non-GPU tests.
+As of 2026-10-27, the `final-standard` image reports `torch 2.9.1+cpu`, and both pinned engine binaries answer `--help`. The local `0.1.1` container started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and the NeMo parser regression was exercised inside the image. The `0.2.0` source tree preserves NeMo top-level word timings, groups captions into multiple cues, adds timed-text output, and splits interval markers at word boundaries; `uv run ruff check .`, `uv run mypy backend`, and the 40 non-GPU tests pass. The `0.3.0` source tree filters whisper.cpp special tokens, merges subword pieces into words, and repairs Qwen3 `chat_template.jinja` for both ASR and the ForcedAligner; the same gates pass with 53 non-GPU tests.
+
+The `0.3.1` source tree fixes the Qwen3 runtime failure in the released image. It pins `torchcodec 0.9.1`, `transformers 5.20.2`, `numpy 2`, and the Japanese/Korean splitters, installs `libpython3.12` for torchcodec's FFmpeg-6 extension, passes 16 kHz float32 PCM windows instead of file paths, slices generated tokens past the prompt, updates the aligner to the 5.20.2 API with segment windowing, and chooses float32 on CPU / bf16 or float16 on CUDA. The source gates pass with 68 non-GPU tests. A local `final-standard` image (3.54 GB) runs the build-time Qwen probe (`transformers 5.20.2`, `torch 2.9.1+cpu`, `torchcodec 0.9.1`, nagisa, soynlp, pyannote.audio, torchcodec WAV decode), and a real CPU smoke run inside the image transcribed a 6.69 s clip with Qwen3-ASR-0.6B (exact text) and aligned 16 words with Qwen3-ForcedAligner-0.6B.
 
 The `v0.2.0` tag workflow published the standard image as `ghcr.io/cozykettle/writtensound:latest`, `0.2.0`, `0.2`, and `sha-f0a1126` (digest `sha256:d4f56f8a0a4cd5a8ddaf79a286f6a4a62d625f32d908f164b1d2678f983dce43`). Registry manifests for all four tags match. The image started as UID/GID 99/100, reached `healthy`, returned HTTP 200 from `/healthz`, and served `0.2.0` with the restored model selector and Timed text option.
 
@@ -169,8 +171,8 @@ unraid/             Unraid container template
 
 ## Known limitations
 
-- **Phase A is incomplete.** whisper.cpp and NeMo-Speech.cpp flags were checked against their pinned upstream sources, but their JSON output schemas and GPU behavior have not been exercised against a local runtime in this environment. The aligner intentionally fails loudly until verified. No engine silently falls back to another device.
-- Qwen3-ASR and pyannote adapters are structurally present but also require Phase A output verification and model weights.
+- **Phase A is incomplete.** whisper.cpp and NeMo-Speech.cpp flags were checked against their pinned upstream sources, but their JSON output schemas and GPU behavior have not been exercised against a local runtime in this environment. Qwen3-ASR + ForcedAligner CPU inference is verified in `0.3.1`; CUDA/Vulkan execution of the Qwen aligner and other real-model GPU output remain unverified. No engine silently falls back to another device.
+- pyannote is structurally present but still requires Phase A output verification and gated model weights. Qwen3-ASR/aligner CPU inference is exercised by the local image smoke test; CUDA Qwen execution is not.
 - The standard Docker image was built and smoke-tested as part of this preview; see [`docs/process-notes.md`](docs/process-notes.md) for the exact verification record. A CUDA target build was started and its cu128 Python layer completed, but CUDA+Vulkan engine compilation did not finish in the available build window. CUDA hardware/output and model-weight inference were not available in the verification environment.
 - Model download actions are not exercised by the hermetic test suite, and gated pyannote models require accepting their Hugging Face terms.
 
