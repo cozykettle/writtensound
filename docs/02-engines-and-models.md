@@ -11,9 +11,9 @@ This document is normative for what appears in the **Engines** page, the model d
 | `faster-whisper` | CTranslate2 (`faster_whisper`) | both variants | CPU, CUDA (**no Vulkan**) | whisper-family ASR, word timestamps, batched |
 | `whisper.cpp` | whisper-cli (GGML) | both variants | CPU, **Vulkan**, CUDA | whisper-family ASR, token timestamps, SRT native |
 | `nemo-speech` | NeMo-Speech.cpp (GGUF) | both variants | CPU, **Vulkan**, CUDA | Nemotron/Parakeet ASR **and** diarization (Sortformer / Nemotron-3) |
-| `qwen3-asr` | `transformers` ≥5.13 | both variants (CUDA deps only in cuda image) | CPU, CUDA (**no Vulkan**) | Qwen ASR; requires ForceAligner for word timestamps |
+| `qwen3-asr` | `transformers` ==5.20.2 | both variants (CUDA deps only in cuda image) | CPU, CUDA (**no Vulkan**) | Qwen ASR; requires the ForcedAligner for word timestamps |
 | `pyannote` | pyannote.audio | both variants | CPU, CUDA (**no Vulkan**) | diarization only |
-| `qwen3-aligner` | `transformers` ≥5.13 | both | CPU, CUDA | **aligner**: word timestamps for ANY transcript (≤5-min windows, 11 langs) |
+| `qwen3-aligner` | `transformers` ==5.20.2 | both | CPU, CUDA | **aligner**: word timestamps for ANY transcript (≤5-min windows, 11 langs) |
 
 An engine is *available to the UI* only if (a) its binary/module is present and (b) the engine is toggled on in **Engines** (default: all on; user may disable any engine entirely).
 
@@ -70,6 +70,36 @@ NeMo runtime extras used internally: Silero VAD (bundled/gguf via the runtime), 
 | `qwen3-aligner-0.6b` | `Qwen/Qwen3-ForcedAligner-0.6B-hf` | ~1.0 GB | aligns 11 langs | — | aligns any transcript; **word-timestamp fallback engine** |
 
 Aligned langs (aligner): zh, en, yue, fr, de, it, ja, ko, pt, ru, es.
+
+ASR languages (catalog `qwen3` list, in model-card order): zh, en, yue, ar, de,
+fr, es, pt, id, it, ko, ru, th, vi, ja, tr, hi, ms, nl, sv, da, fi, pl, cs,
+fil, fa, el, hu, mk, ro. The processor rejects anything outside this set (and
+the 22 Chinese dialects are handled by the model inside `zh`/`yue`); do not
+advertise the wider whisper/NeMo code lists for this engine.
+
+Runtime pins: `transformers==5.20.2`, `torch==2.9.*`, `torchaudio==2.9.*`,
+`torchcodec==0.9.1`, `numpy>=2,<3`, `nagisa==0.3.0`, `soynlp==0.0.493`.
+torchcodec moved to torch >= 2.11 in 0.17, so the 0.9.1 pin is mandatory:
+without it `torchcodec` imports but its shared libraries fail on the first WAV
+decode. `nagisa`/`soynlp` are required by the aligner's Japanese/Korean word
+splitter. `Dockerfile` runs `python -m backend.engines.qwen3.runtime` in both
+app layers, which checks the pins and decodes a probe WAV through torchcodec.
+
+The image must also install the **`libpython3.12`** apt package. torchcodec
+0.9.1's FFmpeg-6 extension (`libtorchcodec_custom_ops6.so`) links against
+`libpython3.12.so.1.0`, which Ubuntu 24.04's `python3-venv` does not pull in;
+without it the probe fails with `Could not load libtorchcodec` and the
+FFmpeg-6 library reports the missing `libpython3.12.so.1.0` symbol. This is an
+OS-package dependency, not a Python pin, so it lives in both app-layer apt
+lists rather than `uv.lock`.
+
+Dtype is chosen per device, not from the checkpoint config. The Qwen snapshots
+declare bf16; CPU inference loads float32 (bf16 convolution is not portable
+across CPU kernels), CUDA uses bf16 when `torch.cuda.is_bf16_supported()` and
+float16 otherwise (Turing/sm_75 cannot run bf16). Floating processor inputs are
+cast to that dtype; ids and masks stay integer. A bf16 checkpoint fed float32
+features fails with `Input type (float) and bias type (c10::BFloat16) should be
+the same`.
 
 Snapshots must also fetch `chat_template.jinja` (`*.jinja` in the catalog
 allow-list). It is a separate file in the Qwen repos, not part of
@@ -156,7 +186,7 @@ Captions require **segment-level timestamps at minimum** — all engines supply 
 | S1 | `whisper-cli -f audio.wav -m m.bin -ojf` output field names for token/word timestamps; confirm flag names on the pinned tag (`--output-json-full`, `--dtw …`, progress hooks). Do not add `--max-len`; it fragments segment boundaries. | grep `whisper.h` on the pinned tag + run against jfk.wav |
 | S2 | `nemo-speech transcribe --json` field schema; whether token/word timestamps exist for Nemotron RNNT and Parakeet TDT; exact `diarize` subcommand + args; `--device vulkan:0` behavior; `--language auto` availability offline | `nemo-speech --help`, `transcribe --help`, `doctor`, run |
 | S3 | faster-whisper 1.2.1 batched-pipeline: exact progress callback API (`log_progress`), word dict shape | small python probe |
-| S4 | `qwen-asr` pip package stability vs raw `transformers` 5.13 path — pick **the transformers path** if accessible & typed; aligner windowing API call pattern | follow model card snippets |
+| S4 | `qwen-asr` pip package stability vs the pinned raw `transformers==5.20.2` path — **the transformers path** is selected; aligner windowing API call pattern follows the pinned release | follow model card snippets + pinned processor source |
 | S5 | pyannote community-1 installability + license surface; fix versions/pins | pip install in-builder + acceptance test |
 | S6 | NeMo-Speech.cpp release binary availability (bins w/ vulkan+cuda in one?) vs builder; pick primary | check GH release assets |
 

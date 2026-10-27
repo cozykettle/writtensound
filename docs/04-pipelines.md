@@ -128,18 +128,43 @@ nemo-speech diarize {prep_wav} --model {diar_gguf} --json --device {vulkan:0|cud
 
 - `SPIKE S2` — confirm exact verb/args/output schema turns[{start,end,speaker}] and max-speaker clamping for both `nemotron-3` (8) and `sortformer 4spk-v2.1` (4). Config params (chunk_len/fifo_len/spkcache…/right context) set ALL to the **offline** "very-high-latency" profile from the model card for best quality (Nemotron-3: `spkcache 264, fifo 40, chunk 340, right 40, update 300`) — the CLI may already default to it; freeze in args.py after S2.
 
-### 3.4 Qwen3-ASR (in-process, transformers ≥5.13)
+### 3.4 Qwen3-ASR (in-process, transformers 5.20)
 
 ```python
 from transformers import AutoProcessor, AutoModelForMultimodalLM
-proc = AutoProcessor.from_pretrained(model_dir) ; model = AutoModelForMultimodalLM.from_pretrained(model_dir, dtype="auto" bf16/cuda/cpu)
-inputs = proc.apply_transcription_request(audio=wav_path, language=None|locale → model's language names)
-out = model.generate(**{k: v.to(dev)}, max_new_tokens=4096)
-parsed = proc.decode(out_ids, return_format="parsed")[0]   # dict: language, transcription
+proc = AutoProcessor.from_pretrained(model_dir)
+dtype = torch.float32 if dev == "cpu" else (
+    torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+)
+model = AutoModelForMultimodalLM.from_pretrained(model_dir, dtype=dtype).to(dev).eval()
+# prep.wav is 16 kHz mono s16le; read a window as float32 numpy samples
+audio = qwen_audio.read_window(prep_wav, start, end)
+request = proc.apply_transcription_request(audio=audio, language=None|code|name)
+inputs = {k: v.to(dtype) if v.is_floating_point() else v for k, v in request.to(dev).items()}
+out = model.generate(**inputs, max_new_tokens=4096)
+generated = out[:, inputs["input_ids"].shape[1]:]            # drop the prompt/prefill
+parsed = proc.decode(generated, return_format="parsed")[0]   # language, transcription
 ```
 
-- Long audio: the processor (`lingua`) handles up to? Unclear → own chunking: split wav at silence-ish boundaries every **240 s with 1 s overlap**, transcribe chunks, stitch segments (offset += chunk start; drop <0.3 s overlap dup), report combined `language`.
-- Lexical mapping `translation`/`language auto` per model card list.
+- Audio is handed to the processor as a numpy array, never as a file path.
+  `transformers.audio_utils.load_audio` short-circuits ndarrays, so the WAV
+  path (and torchcodec's decoders) is not selected for `prep.wav`.
+- **Dtype follows the device, not the checkpoint.** The Qwen snapshots declare
+  bf16. CPU loads float32 because bf16 convolution is not portable across CPU
+  kernels; CUDA uses bf16 when the GPU reports support and float16 otherwise
+  (Turing/sm_75, e.g. T600, cannot execute bf16). Floating inputs are cast to
+  the model dtype; token ids and masks stay integer. Loading a bf16 checkpoint
+  and feeding float32 features fails with `Input type (float) and bias type
+  (c10::BFloat16) should be the same`.
+- Language accepts ISO codes or full names; `auto` passes `None`. The catalog
+  `qwen3` list is the supported 30-code set.
+- The generated ids must be sliced by the request's prompt length. Decoding
+  the full sequence puts the chat prompt before `<asr_text>`, which makes the
+  parser read the language from the prompt instead of the model output.
+- Long audio: split `prep.wav` every **240 s with 1 s overlap**, transcribe
+  each window, stitch segments (`start`/`end` are window times). Qwen returns
+  no word times, so the overlap is not text-deduplicated; a boundary word may
+  repeat rather than be clipped.
 - **Chat template**: the snapshot must contain `chat_template.jinja`; it is a
   separate file in the Qwen repos. The catalog fetches `*.jinja`, and the
   adapter restores it for older local snapshots before calling
@@ -165,9 +190,34 @@ turns = [(turn.start, turn.end, int(label.split("_")[-1])) for turn, _, label in
 ### 3.6 Qwen3-ForcedAligner (in-process, optional engine)
 
 - Applied when: settings `word_timestamps=true` and the chosen ASR model's catalog capability is `aligner` (Nemotron 3.5 and Qwen-ASR).
-- Inputs: wav + CURRENT merged transcript text (ASR output) restricted to alignable segments: chunk the (segment, audio) into ≤300 s windows (5-min model limit), 1-s overlap discarded.
-- Output per window: word → (start, end); assemble full IR words.
-- Languages (11): zh, en, yue, fr, de, it, ja, ko, pt, ru, es. If transcript language ∉ list or auto-detected unknown → warn toast; words stay empty and word-based features fall back to segment times (UI notified, not silent).
+- Inputs: wav + CURRENT merged transcript text (ASR output), one segment at a time. Audio is sliced from `prep.wav` as a float32 numpy window. Segments at or under the 5-minute model limit go in one pass; longer segments are split into consecutive windows of ≤300 s, with the segment text split at word/character boundaries in proportion to the window durations. The job log names the segment and window count, so the approximation is visible.
+- API (transformers 5.20, verified against the pinned release):
+
+```python
+from transformers import AutoProcessor, AutoModelForTokenClassification
+proc = AutoProcessor.from_pretrained(aligner_dir)
+dtype = torch.float32 if dev == "cpu" else (
+    torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+)
+model = AutoModelForTokenClassification.from_pretrained(aligner_dir, dtype=dtype).to(dev).eval()
+inputs, word_lists = proc.prepare_forced_aligner_inputs(
+    audio=window, transcript=segment_text, language=code,
+)
+inputs = {k: v.to(dtype) if v.is_floating_point() else v for k, v in inputs.to(dev).items()}
+with torch.inference_mode():
+    logits = model(**inputs).logits
+items = proc.decode_forced_alignment(
+    logits=logits,
+    input_ids=inputs["input_ids"],
+    word_lists=word_lists,
+    timestamp_token_id=model.config.timestamp_token_id,
+)[0]  # [{text, start_time, end_time}] in seconds, relative to the window
+```
+
+- Output per window: word → (start, end); add the window start, clamp to the window, and assemble full IR words. Empty text segments keep `words = None`.
+- The aligner uses the same device dtype rule as ASR (§ 3.4): float32 on CPU, bf16 on CUDA when supported, float16 otherwise. Cast floating inputs only.
+- Languages (11): zh, en, yue, fr, de, it, ja, ko, pt, ru, es. Codes and full names are both accepted. If the transcript language is missing, `auto`, or outside that list, the aligner logs which language was refused and every segment keeps `words = None`; word-based features fall back to segment times (surfaced in the job log, never a hard job failure).
+- Japanese/Korean splitting needs `nagisa==0.3.0` / `soynlp==0.0.493`; the image probe imports both.
 - **Chat template**: when the aligner processor has no template, the loader repairs it from `chat_template.jinja` or fetches that one file for an older snapshot, exactly like the ASR path (§ 3.4). A missing template is a loud `engine_crash`.
 
 ## 4. Merge & post-processing

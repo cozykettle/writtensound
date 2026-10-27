@@ -19,7 +19,10 @@ ARG CUDA_ARCHITECTURES="75;80;86;89;90;120"
 FROM ubuntu:24.04 AS engine-build-base
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+# Pipelined or proxied apt downloads can arrive corrupted with an identical
+# byte count (apt reports "Hash Sum mismatch"); fetch one request at a time and
+# bypass proxy caches in every apt layer.
+RUN apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true update && apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true install -y --no-install-recommends \
         build-essential \
         ca-certificates \
         cmake \
@@ -88,7 +91,7 @@ RUN git clone --depth 1 --branch "${NEMOSPEECH_TAG}" \
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04 AS cuda-engine-build-base
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true update && apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true install -y --no-install-recommends \
         build-essential \
         ca-certificates \
         cmake \
@@ -167,12 +170,13 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
     PATH=/app/.venv/bin:$PATH
-RUN apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true update && apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true install -y --no-install-recommends \
         ca-certificates \
         curl \
         ffmpeg \
         gosu \
         libgomp1 \
+        libpython3.12 \
         libsentencepiece0 \
         libsndfile1 \
         libvulkan1 \
@@ -194,7 +198,8 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv sync --frozen --no-dev --extra engines \
     && sed -i 's/\r$//' /app/entrypoint.sh \
     && chmod +x /app/entrypoint.sh \
-    && /app/.venv/bin/python -c "import backend"
+    && /app/.venv/bin/python -c "import backend" \
+    && /app/.venv/bin/python -m backend.engines.qwen3.runtime
 
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn-runtime-ubuntu24.04 AS app-cuda
 
@@ -205,12 +210,13 @@ ENV PYTHONUNBUFFERED=1 \
     PATH=/app/.venv/bin:$PATH \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
-RUN apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true update && apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 -o Acquire::http::No-Cache=true install -y --no-install-recommends \
         ca-certificates \
         curl \
         ffmpeg \
         gosu \
         libgomp1 \
+        libpython3.12 \
         libsentencepiece0 \
         libsndfile1 \
         libvulkan1 \
@@ -238,7 +244,8 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     && /app/.venv/bin/python -c "import torch; assert torch.version.cuda == '12.8', torch.version.cuda" \
     && sed -i 's/\r$//' /app/entrypoint.sh \
     && chmod +x /app/entrypoint.sh \
-    && /app/.venv/bin/python -c "import backend"
+    && /app/.venv/bin/python -c "import backend" \
+    && /app/.venv/bin/python -m backend.engines.qwen3.runtime
 
 # ---------------------------------------------------------------------------
 # Final targets

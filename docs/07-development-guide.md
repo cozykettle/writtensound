@@ -76,7 +76,7 @@ yet, so Phase A and a scripted real-engine E2E remain open.
 ```toml
 [project]
 name = "writtensound"
-version = "0.3.0"
+version = "0.3.1"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.118,<1",
@@ -92,15 +92,25 @@ dependencies = [
 engines = [
   "faster-whisper==1.2.1",
   "ctranslate2>=4.5,<5",
-  "transformers>=5.13,<6",
+  "transformers==5.20.2",
   "torch==2.9.*",
   "torchaudio==2.9.*",
+  "torchcodec==0.9.1",
+  "numpy>=2,<3",
+  "nagisa==0.3.0",
+  "soynlp==0.0.493",
   "pyannote.audio>=4.0,<5",
 ]
-dev = ["pytest>=9", "pytest-asyncio", "httpx", "ruff>=0.14", "mypy>=1.18", "types-aiofiles", "types-PyYAML"]
+dev = ["pytest>=9", "pytest-asyncio", "httpx", "ruff>=0.14", "mypy>=1.18", "numpy>=2,<3", "types-aiofiles", "types-PyYAML"]
 ```
 
 `uv sync --frozen` in image builds. The committed lock resolves `torch`/`torchaudio` from the PyTorch CPU index declared in `pyproject.toml`; the CUDA final layer replaces those two wheels with cu128 builds. Do not add `ffmpeg-python` or any Python ffmpeg wrapper — use the system `ffmpeg`/`ffprobe` binaries only.
+
+The Qwen pins are a set. `torchcodec 0.17` (pulled in by pyannote) requires torch 2.11, so it must stay at `0.9.1` for the torch 2.9 image; `transformers` is exact because the Qwen processor/aligner API and forced-alignment decoding changed inside the 5.x line. `nagisa` and `soynlp` are required for Japanese/Korean alignment. Both app layers run `python -m backend.engines.qwen3.runtime`, which verifies the versions, imports the Qwen stack and optional splitters, and decodes a probe WAV through torchcodec before the image can be published.
+
+The app layers must also apt-install `libpython3.12`. torchcodec 0.9.1's FFmpeg-6 extension dlopens `libpython3.12.so.1.0`; `python3-venv` does not install that shared library on Ubuntu 24.04, and the build probe fails with `Could not load libtorchcodec` until the package is present. Keep it in both `app-standard` and `app-cuda` apt lists.
+
+Qwen dtypes are device-driven: float32 on CPU, bf16 on CUDA when the GPU supports it, float16 otherwise. The checkpoint config declares bf16, so loading it unchanged fails on CPU convolution with `Input type (float) and bias type (c10::BFloat16) should be the same`; `backend/engines/qwen3/dtype.py` owns the rule and both ASR and the aligner cast only floating inputs.
 
 ## 3. Coding standards
 
