@@ -1,6 +1,6 @@
 import json
 
-from backend.engines.nemo.adapter import _extract_json, _segments_from_payload
+from backend.engines.nemo.adapter import _extract_json, _segments_from_payload, _times
 
 
 def test_extract_json_ignores_engine_warning_and_word_lines() -> None:
@@ -53,3 +53,28 @@ def test_top_level_words_are_not_collapsed_into_one_text_segment() -> None:
     assert segments[0].end == 23.0
     assert segments[0].words is not None
     assert [word.start for word in segments[0].words] == [0.0, 11.0, 22.0]
+
+
+def test_late_word_times_stay_in_seconds_past_sixteen_minutes() -> None:
+    payload = {
+        "file": "/data/jobs/example/media/prep.wav",
+        "text": "Early late.",
+        "duration": 1602.0,
+        "words": [
+            {"word": "Early", "start": 2.0, "end": 2.5},
+            {"word": "late.", "start": 1600.0, "end": 1601.5},
+        ],
+    }
+
+    segments = _segments_from_payload(payload)
+
+    assert segments[0].words is not None
+    assert [word.start for word in segments[0].words] == [2.0, 1600.0]
+    assert [word.end for word in segments[0].words] == [2.5, 1601.5]
+    assert segments[0].end == 1601.5
+
+
+def test_millisecond_payloads_are_still_normalized() -> None:
+    item = {"start": 120_000, "end": 121_500}
+
+    assert _times(item) == (120.0, 121.5)

@@ -287,7 +287,11 @@ def _times(item: dict[str, Any]) -> tuple[float, float]:
         return _float(item["offsets"].get("from")) or 0.0, _float(item["offsets"].get("to")) or 0.0
     start = _float(item.get("start", item.get("t0", item.get("start_time")))) or 0.0
     end = _float(item.get("end", item.get("t1", item.get("end_time")))) or 0.0
-    if end > 1000 and start > 1000:
+    # NeMo-Speech.cpp reports seconds.  A clip longer than ~16.6 minutes used
+    # to trip the old "both values > 1000 means milliseconds" heuristic and
+    # collapsed every late word to roughly one second.  Only convert values
+    # that cannot be seconds for a plausible recording.
+    if start > 100_000 and end > 100_000:
         start /= 1000.0
         end /= 1000.0
     return start, end
