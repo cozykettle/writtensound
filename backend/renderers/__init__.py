@@ -218,6 +218,55 @@ def render_txt(segments: list[MergedSegment], pauses: list[Pause], settings: Job
     return "\n\n".join(blocks).strip() + "\n"
 
 
+def _reflow_html_turns(turns: list[Turn]) -> list[Turn]:
+    """Merge tiny engine segments into readable HTML paragraphs.
+
+    whisper.cpp emits progressively shorter segments late in a file, which made
+    the HTML transcript look like a poem.  Merge only paragraphs that carry no
+    timestamp, pause marker, or overlap change, so every explicit break and
+    inline marker survives.  Turn and speaker boundaries are never crossed.
+    """
+    target_words = 80
+    target_chars = 560
+    reflowed: list[Turn] = []
+    for turn in turns:
+        paragraphs: list[Paragraph] = []
+        for paragraph in turn.paragraphs:
+            text = paragraph.text.strip()
+            if not text:
+                continue
+            current = paragraphs[-1] if paragraphs else None
+            can_merge = (
+                current is not None
+                and current.pause is None
+                and paragraph.timestamp is None
+                and paragraph.pause is None
+                and paragraph.overlap == current.overlap
+                and len(current.text.split()) < target_words
+                and len(current.text) < target_chars
+            )
+            if can_merge and current is not None:
+                current.text = f"{current.text.rstrip()} {text}"
+            else:
+                paragraphs.append(
+                    Paragraph(
+                        text=text,
+                        timestamp=paragraph.timestamp,
+                        pause=paragraph.pause,
+                        overlap=paragraph.overlap,
+                    )
+                )
+        reflowed.append(
+            Turn(
+                speaker=turn.speaker,
+                start=turn.start,
+                timestamp=turn.timestamp,
+                paragraphs=paragraphs,
+            )
+        )
+    return reflowed
+
+
 def render_html(
     *,
     title: str,
@@ -236,7 +285,7 @@ def render_html(
         lstrip_blocks=True,
     )
     template = env.get_template("transcript.html.j2")
-    turns = build_turns(segments, pauses, settings)
+    turns = _reflow_html_turns(build_turns(segments, pauses, settings))
     speakers = {turn.speaker for turn in turns if turn.speaker is not None}
     return template.render(
         title=title,

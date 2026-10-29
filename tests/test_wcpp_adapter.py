@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.engines.wcpp.adapter import _segments_from_payload
+import pytest
+
+from backend.engines.wcpp import adapter
+from backend.engines.wcpp.adapter import _segments_from_payload, duration_for
 from backend.engines.wcpp.args import build_command
+from backend.pipeline.prep import MediaInfo
 
 
 def test_special_tokens_are_excluded_and_word_pieces_are_merged() -> None:
@@ -119,3 +123,16 @@ def test_command_keeps_full_json_without_destructive_max_len() -> None:
 
     assert "--output-json-full" in cmd
     assert "--max-len" not in cmd
+
+
+def test_duration_falls_back_to_the_media_probe(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    media = tmp_path / "prep.wav"
+    media.write_bytes(b"")
+    monkeypatch.setattr(
+        adapter,
+        "probe_media",
+        lambda path: MediaInfo(duration_s=42.5, sample_rate=16_000, channels=1, format_name="wav"),
+    )
+
+    assert duration_for({"transcription": []}, media) == 42.5
+    assert duration_for({"result": {"duration": 12.25}}, media) == 12.25

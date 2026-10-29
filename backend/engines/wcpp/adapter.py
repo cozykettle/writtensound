@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ...jobs import ApiError, JobSettings
+from ...pipeline.prep import probe_media
 from ...pipeline.types import Segment, TranscriptionResult, Word
 from ..base import CancelFn, EngineContext, JobCancelledError, ProgressFn, find_binary
 from . import args
@@ -108,7 +109,7 @@ class WhisperCppAdapter:
             compute=compute,
             language=payload.get("result", {}).get("language") if isinstance(payload.get("result"), dict) else None,
             language_prob=None,
-            duration_s=probe_duration(payload),
+            duration_s=duration_for(payload, audio_path),
             media_id=media_id,
             segments=segments,
         )
@@ -241,6 +242,14 @@ def probe_duration(payload: dict[str, Any]) -> float:
         except (TypeError, ValueError):
             return 0.0
     return 0.0
+
+
+def duration_for(payload: dict[str, Any], audio_path: Path) -> float:
+    """Full metadata when available; otherwise ask ffprobe about prep.wav."""
+    duration = probe_duration(payload)
+    if duration > 0:
+        return duration
+    return probe_media(audio_path).duration_s
 
 
 def _terminate(process: subprocess.Popen[str]) -> None:

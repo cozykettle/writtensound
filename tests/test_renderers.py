@@ -141,6 +141,69 @@ def test_html_escapes_content_and_marks_overlap() -> None:
     assert "your words stayed home" in html
 
 
+def test_html_reflows_short_engine_segments_without_losing_text() -> None:
+    segments = [
+        MergedSegment(start=float(index * 3), end=float(index * 3 + 2), text=f"word{index} alpha beta gamma", speaker=None)
+        for index in range(12)
+    ]
+
+    html = render_html(
+        title="Reflow",
+        segments=segments,
+        pauses=[],
+        settings=settings(timestamps_mode="none"),
+        transcription=transcription(),
+        diar=None,
+        resolved={"asr_model": "demo-script", "device": "cpu"},
+        version="0.4.0",
+    )
+
+    assert html.count("<p>") == 1
+    assert "word0 alpha beta gamma word1 alpha beta gamma" in html
+    assert "word11 alpha beta gamma" in html
+
+
+def test_html_reflow_keeps_interval_markers_as_paragraph_starts() -> None:
+    segments = [
+        MergedSegment(start=float(index * 11), end=float(index * 11 + 10), text=f"block{index}", speaker=None)
+        for index in range(3)
+    ]
+
+    html = render_html(
+        title="Markers",
+        segments=segments,
+        pauses=[],
+        settings=settings(interval_s=10),
+        transcription=transcription(),
+        diar=None,
+        resolved={"asr_model": "demo-script", "device": "cpu"},
+        version="0.4.0",
+    )
+
+    assert html.count("<p>") == 3
+    assert '<p><span class="ts">[00:00:00]</span>' in html
+    assert '<span class="ts">[00:00:11]</span>' in html
+    assert '<span class="ts">[00:00:22]</span>' in html
+
+
+def test_html_meta_can_wrap_dates_and_shows_duration() -> None:
+    data = transcription().model_copy(update={"duration_s": 3725.0})
+    html = render_html(
+        title="Meta",
+        segments=merged_segments(),
+        pauses=[],
+        settings=settings(),
+        transcription=data,
+        diar=None,
+        resolved={"asr_model": "demo-script", "device": "cpu"},
+        version="0.4.0",
+    )
+
+    assert "01:02:05" in html
+    assert "min-width: 0" in html
+    assert "overflow-wrap: anywhere" in html
+
+
 def test_srt_vtt_cues_and_wordless_segments() -> None:
     srt = render_srt(merged_segments(), settings(), diar_result())
     assert "00:00:00,000 --> 00:00:02,250" in srt
