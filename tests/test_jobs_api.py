@@ -93,6 +93,15 @@ def test_pending_job_edit_cancel_and_retry(client: TestClient, wav_file: bytes, 
     assert client.get(f"/api/jobs/{first}").json()["status"] == "pending"
     assert client.get(f"/api/jobs/{second}").json()["status"] == "pending"
 
+    first_data = client.get(f"/api/jobs/{first}").json()
+    second_data = client.get(f"/api/jobs/{second}").json()
+    assert second_data["seq"] > first_data["seq"]
+    listed = client.get("/api/jobs").json()["jobs"]
+    assert [item["id"] for item in listed] == [second, first]
+    queue_snapshot = state.runner.queue_snapshot()
+    assert [item["id"] for item in queue_snapshot] == [second, first]
+    assert queue_snapshot[0]["title"] == "second.wav"
+
     edited = client.patch(
         f"/api/jobs/{second}",
         json={"out_basename": "edited-second", "interval_s": 10},

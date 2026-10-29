@@ -23,7 +23,6 @@ from .jobs import (
     JobSettings,
     job_out,
     job_settings_from_row,
-    job_state_dict,
     resolved_device,
     settings_warnings,
     utc_now,
@@ -160,12 +159,15 @@ class JobRunner:
 
     def queue_snapshot(self) -> list[dict[str, Any]]:
         with self._condition:
-            ids = list(self._queue)
+            ids = ([self._current] if self._current else []) + list(self._queue)
         rows = []
         for job_id in ids:
+            if job_id is None:
+                continue
             row = self.store.get(job_id)
             if row and row["status"] in {"pending", "running"}:
-                rows.append(job_state_dict(row))
+                rows.append(job_out(row, self.paths.jobs))
+        rows.sort(key=lambda job: job.get("seq") or 0, reverse=True)
         return rows
 
     # -- worker ----------------------------------------------------------
@@ -456,14 +458,7 @@ class JobRunner:
         self.hub.publish("job", job_out(row, self.paths.jobs))
 
     def _publish_queue(self) -> None:
-        snapshot = []
-        with self._condition:
-            ids = list(self._queue)
-        for job_id in ids:
-            row = self.store.get(job_id)
-            if row and row["status"] in {"pending", "running"}:
-                snapshot.append(job_state_dict(row))
-        self.hub.publish("queue", snapshot)
+        self.hub.publish("queue", self.queue_snapshot())
 
     # -- terminal states -------------------------------------------------
     def _finish_cancelled(self, job_id: str) -> None:

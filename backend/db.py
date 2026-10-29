@@ -124,7 +124,7 @@ class JobStore:
         )
 
     def get(self, job_id: str) -> sqlite3.Row | None:
-        return self.db.query_one("SELECT * FROM jobs WHERE id=?", (job_id,))
+        return self.db.query_one("SELECT rowid AS seq, * FROM jobs WHERE id=?", (job_id,))
 
     def require(self, job_id: str) -> sqlite3.Row:
         row = self.get(job_id)
@@ -135,16 +135,16 @@ class JobStore:
     def list_jobs(self, *, status: str | None = None, limit: int = 100, offset: int = 0) -> list[sqlite3.Row]:
         if status:
             return self.db.query(
-                "SELECT * FROM jobs WHERE status=? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+                "SELECT rowid AS seq, * FROM jobs WHERE status=? ORDER BY rowid DESC LIMIT ? OFFSET ?",
                 (status, limit, offset),
             )
         return self.db.query(
-            "SELECT * FROM jobs ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+            "SELECT rowid AS seq, * FROM jobs ORDER BY rowid DESC LIMIT ? OFFSET ?",
             (limit, offset),
         )
 
     def pending(self) -> list[sqlite3.Row]:
-        return self.db.query("SELECT * FROM jobs WHERE status='pending' ORDER BY created_at ASC, id ASC")
+        return self.db.query("SELECT rowid AS seq, * FROM jobs WHERE status='pending' ORDER BY rowid ASC")
 
     def all_for_snapshot(self, limit: int = 250) -> list[sqlite3.Row]:
         return self.list_jobs(limit=limit)

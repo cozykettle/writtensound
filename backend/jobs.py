@@ -312,6 +312,7 @@ def job_out(row: sqlite3.Row, jobs_root: Path) -> dict[str, Any]:
                 outputs.append({"name": path.name, "size_ct": stat.st_size, "modified": stat.st_mtime})
     return {
         "id": row["id"],
+        "seq": row["seq"],
         "created_at": row["created_at"],
         "started_at": row["started_at"],
         "finished_at": row["finished_at"],
@@ -327,13 +328,4 @@ def job_out(row: sqlite3.Row, jobs_root: Path) -> dict[str, Any]:
         "error": json.loads(row["error"]) if row["error"] else None,
         "log_paths": json.loads(row["log_paths"]) if row["log_paths"] else [],
         "outputs_manifest": outputs,
-    }
-
-
-def job_state_dict(row: sqlite3.Row) -> dict[str, Any]:
-    return {
-        "job_id": row["id"],
-        "status": row["status"],
-        "progress": row["progress"],
-        "created_at": row["created_at"],
     }

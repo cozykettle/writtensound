@@ -386,9 +386,11 @@
     const jobs = state.jobs
       .slice()
       .sort((a, b) => {
-        const rank = { running: 0, pending: 1, failed: 2, interrupted: 3, cancelled: 4, succeeded: 5 };
-        const delta = (rank[a.status] ?? 9) - (rank[b.status] ?? 9);
-        if (delta !== 0) return delta;
+        const seqA = Number(a.seq);
+        const seqB = Number(b.seq);
+        if (Number.isFinite(seqA) && Number.isFinite(seqB) && seqA !== seqB) {
+          return seqB - seqA;
+        }
         return String(b.created_at || "").localeCompare(String(a.created_at || ""));
       });
     body.replaceChildren();
@@ -898,6 +900,16 @@
         renderQueue();
       } catch (error) {
         console.error("bad job event", error);
+      }
+    });
+    source.addEventListener("queue", (event) => {
+      try {
+        const jobs = JSON.parse(event.data);
+        if (!Array.isArray(jobs)) return;
+        for (const job of jobs) upsertJob(job);
+        renderQueue();
+      } catch (error) {
+        console.error("bad queue event", error);
       }
     });
     source.addEventListener("hardware", (event) => {

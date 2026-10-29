@@ -151,7 +151,7 @@ All JSON; all require auth when enabled; all return `application/json` except fi
 | 11 | `PATCH /api/jobs/{id}` body: partial JobSettings | only when `status == pending`; emits `job` SSE. |
 | 12 | `DELETE /api/jobs/{id}` | when pending → remove; when running → cancel first then remove (async; SSE events); outputs/logs retained per retention policy. |
 | 13 | `POST /api/jobs/{id}/cancel` | running → cancel (S2A below), pending → becomes `cancelled`. |
-| 14 | `POST /api/jobs/{id}/retry` | re-queues job **at the tail**; on `failed` status ID keeps history (now `interrupted`→status reset pending). |
+| 14 | `POST /api/jobs/{id}/retry` | re-queues job **at the worker tail**; on `failed` status ID keeps history (now `interrupted`→status reset pending). Its `seq` is unchanged, so the queue row keeps its original insertion position. |
 | 15 | `POST /api/jobs/{id}/fallback-cpu` | failed-with-device-error; sets `device=cpu` and re-queues. Only enabled when device error category. |
 | 16 | `GET /api/jobs/{id}/outputs` → manifest list (fresh from disk) | names: `{job_id}{suffix}.{ext}` foldered. |
 | 17 | `GET /api/jobs/{id}/outputs/{name}` | `FileResponse` w/ `Content-Disposition: attachment`; names validated against sanitized manifest only. |
