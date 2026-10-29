@@ -426,3 +426,61 @@ is in the next section.
   record MAC`; `crane` fetched the digest and `docker load` completed the
   container check.
 - **GitHub release:** https://github.com/cozykettle/writtensound/releases/tag/v0.3.1
+
+## 0.4.0 plan and root causes (2026-10-28)
+
+`0.4.0` is a fix release for eight user reports. The durable change list lives
+in `docs/09-deployment-handoff.md` §5; this section records the decisions and
+the evidence behind them. The CUDA target stays parked and is not built or
+validated for this release.
+
+- **Queue updates stopped behind a running job.** The server publishes a
+  `queue` event from `JobRunner.enqueue()` and `_publish_queue()`, but
+  `backend/static/app.js` only listened for `job`, `snapshot`, `hardware`,
+  `model`, `engine`, and `toast`. `job` is emitted when a job starts, changes
+  progress, or finishes, so newly enqueued `pending` jobs never reached the
+  client until their turn. The client now consumes `queue`.
+- **The `queue` payload was minimal and unused.** It carried
+  `[{job_id,status,progress}]`, which cannot render a row and does not match the
+  `JobOut.id` field used elsewhere. It now carries full `JobOut` objects for
+  `pending` and `running` jobs. No extra request per row.
+- **Queue order is insertion order, newest first.** Sorting by status rank put
+  `running` above newer `pending` jobs and used `created_at`, which can collide
+  inside one batch. `JobOut` now includes `seq` (the SQLite rowid), and the
+  client sorts by `seq` descending. This satisfies "newest on top" and
+  "processing jobs below new ones" with one rule. `created_at` remains the
+  human timestamp; `seq` is never user-editable.
+- **faster-whisper 1.2.1 signature.** The installed 1.2.1 source declares
+  `temperature: Union[float, List[float], Tuple[float, ...]]` and has no
+  `progress_hook` parameter. The frozen kwargs now pass `temperature: 0.0`;
+  the adapter's existing hook detection keeps the segment-count heuristic and
+  writes a log line using the pinned version constant, not a hard-coded string.
+- **HTML date overlap is CSS, not data.** The `.meta` grid uses
+  `minmax(140px, 1fr)` and each cell is a flex row. The `dd` child keeps its
+  min-content width, so a 25-character ISO date overflows into the duration
+  cell. `min-width: 0` on the cell and `overflow-wrap: anywhere` on the value
+  let the date wrap inside its own column.
+- **HTML duration `00:00:00` is missing metadata.** `probe_duration(payload)`
+  only reads `payload["result"]["duration"]`; whisper.cpp's full JSON does not
+  provide it. The adapter now falls back to `probe_media(audio_path)` and keeps
+  the payload value when present.
+- **Shrinking whisper.cpp lines are engine-driven.** The attached repro has
+  early paragraphs of ~20 words and late paragraphs of 2–5 words because the
+  engine emits progressively smaller segments. HTML now merges consecutive
+  paragraphs inside a turn up to ~90 words / 600 characters, breaking on a
+  timestamp, a pause marker, or a speaker turn. TXT/SRT/VTT/timed/JSON keep the
+  original boundaries so captions do not become long cues.
+- **NeMo late-word timestamps were mangled.** `_times()` divided by 1000 when
+  both endpoints were above 1000, which is true for any word after 16:40 in a
+  file. The heuristic now only treats values above 100000 as milliseconds, so
+  words keep real seconds.
+- **Parakeet dropped sentences are an upstream limitation.** NeMo-Speech.cpp
+  has no ASR precision flag; the GGUF quantization is the quality choice. The
+  runtime already splits long offline input at quiet points when it exceeds the
+  encoder's positional budget, and Parakeet TDT is offline-only. NVIDIA's model
+  card documents full attention to about 24 minutes (local attention to about 3
+  hours) and the model discussion board reports occasional dropped short
+  utterances. WrittenSound logs the limitation and documents whisper.cpp as the
+  long-form alternative; it does not switch engines or silently degrade.
+
+Verification and release details are appended after the `0.4.0` build.

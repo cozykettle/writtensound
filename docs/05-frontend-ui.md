@@ -2,7 +2,7 @@
 
 Plain server-rendered pages (Jinja2) upgraded with **htmx** for partial swaps and one `EventSource` connection for live updates. A single hand-rolled `app.js` (no framework, no build step) covers upload sequencing, drag-and-drop folder walk, and settings-modal glue. Vendored assets only: `htmx.min.js` (~14 KB), `htmx-ext-sse`, open font optional (system stack). Distinctly **not fancy** — deliberate minimalism: flat cards, one accent color, compact spacing, system fonts.
 
-Brand constant: `WRITTENSOUND` wordmark = text "WrittenSound" + no icon (keep CSS-only dot accent).
+Brand constant: `WRITTENSOUND` wordmark = text "WrittenSound" with the CSS dot accent in the top bar. The browser icon is a local SVG: a warm-paper speech bubble with three sound bars (speech + written marks), linked from `base.html` as `rel="icon"` with no remote assets.
 
 ---
 
@@ -47,7 +47,9 @@ Model selection lives on **Engines** (per-model `Use`), **Settings** (defaults f
 The Add jobs form carries a visible `asr_model_id` select grouped by engine, so every queued job has a complete `JobSettings` and the model can change without leaving the queue. The queue table row still shows the model used for each job.
 
 **Queue behaviors (normative):**
-- `Add N to queue` uploads pending files one at a time (sequential client loop with a per-file progress bar), then `POST /api/jobs` with `items[]` and the settings from the form. On success the staged list clears and the page scrolls to the queue.
+- Newest added job is on top. Rows are ordered by server insertion sequence (`seq`, newest first), regardless of status; a running job therefore sits below any jobs added after it. Status is never used as a sort key.
+- `Add N to queue` uploads pending files one at a time (sequential client loop with a per-file progress bar), then `POST /api/jobs` with `items[]` and the settings from the form. On success the staged list clears and the page scrolls to the queue. The new rows appear over SSE without a reload: the client consumes both `job` and `queue` events.
+- The `queue` SSE payload is the full `JobOut` list for `pending` and `running` jobs. The client merges each entry into its local job list and re-renders, so a row added behind a running job appears immediately.
 - The Add button is disabled while no files are staged, during upload, or when a staged file failed. Its label is `Add to queue` with no files, `Add N to queue` with files, and `Uploading…` during upload.
 - **Per-job settings**: pending rows have `Edit` → the same settings form in the modal (`PATCH /api/jobs/{id}`), plus `Cancel` and `Delete`. Failed rows have `Retry`, optional `CPU retry` for `unsupported_device`, and `Delete`. Other rows have `Delete`; running rows have `Cancel`.
 - Row click expands a detail row (outputs, logs, error, resolved settings, timestamps). The detail row spans all five columns.

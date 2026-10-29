@@ -84,7 +84,10 @@ seg_iter, info = model.transcribe(prep_wav_path,
 `hook` = callable(frac, total) → `(frac/total, f"asr {frac}/{total}")`. `info.language[_probability]`, `info.duration`. Words include `prob` (0..1). No diarization integration.
 
 Options not exposed in UI v1: `beam_size=1` fixed default, `patience=1.0`, `suppress_tokens` default, `chunk_length=30`.
-`SPIKE S3` — re-check exact `progress_hook` signature and word dict keys on 1.2.1.
+`SPIKE S3` — faster-whisper 1.2.1 accepts the singular `temperature` (float
+or list), not `temperatures`, and has no `progress_hook` parameter. The adapter
+passes `temperature=0.0` and uses segment-count heuristic progress when the
+hook is absent.
 
 ### 3.2 whisper.cpp (subprocess `whisper-cli`)
 
@@ -119,6 +122,8 @@ nemo-speech transcribe {prep_wav} --model {gguf_path} --json \
 
 - `--language` maps UI code → catalog locale code (en-US, de-DE, …); `auto` allowed. JSON structure verified by S2 (fields to be mapped into `Segment/Word`).
 - Parakeet TDT returns top-level `words[]` without `segments[]`. The adapter maps those words into one `Segment` with its `words` list intact and uses the payload `text` when present; it must not fall back to a word-less `0 → duration` segment. Renderers group the preserved words into cues.
+- NeMo-Speech.cpp times are seconds. A seconds value above 1000 (any clip over ~16.6 minutes) must not be mistaken for milliseconds; the parser only divides by 1000 when the value is implausibly large for seconds (`> 100000`).
+- Long-audio limitation: NeMo-Speech.cpp splits offline input at quiet points when it exceeds the encoder's positional budget, and Parakeet TDT is offline-only. The upstream model card/community reports occasional dropped short utterances ("the model sometimes drops full sentences"); there is no ASR precision flag, only the GGUF quantization. This is a model/runtime limitation, not a settings bug, and WrittenSound must not silently substitute another engine. Use whisper.cpp for critical long-form work.
 - `SPIKE S2` — whether per-token timestamps exist for Nemotron RNNT & Parakeet TDT in offline (`transcribe`) mode (TDT appears ability-inherent). If RNNT gives none: catalog marks this engine `word-ts: aligner`.
 - Diarization:
 
@@ -262,8 +267,8 @@ Naming: `out_basename` else `media_id`+suffix when clip or collisions (`_clip`)?
 ### 5.2 HTML
 
 Jinja2 template `out/transcript.html.j2` — self-contained (inline CSS, no remote assets), clean and print friendly:
-- Header block: title (media name), job meta (date ISO, engine, model, device, language, duration, diarizer, version row "WrittenSound vX").
-- Body per speaker turn: `<h3>Speaker N <span>[hh:mm:ss]</span></h3>` (when diarization produced more than one speaker; turn timestamps follow § 4.2 rules), then `<p>` per segment or interval chunk; line numbers in a left gutter via CSS counters. A single-speaker transcript has no `Speaker 1` heading.
+- Header block: title (media name), job meta (date ISO, engine, model, device, language, duration, diarizer, version row "WrittenSound vX"). The meta grid lets each value wrap and shrink (`min-width: 0`, `overflow-wrap: anywhere`) so a full ISO date cannot overlap the next cell. Duration comes from `TranscriptionResult.duration_s`; when an engine omits it, the adapter probes `prep.wav` and stores the real media duration.
+- Body per speaker turn: `<h3>Speaker N <span>[hh:mm:ss]</span></h3>` (when diarization produced more than one speaker; turn timestamps follow § 4.2 rules), then `<p>` per paragraph. HTML reflows short engine segments inside a turn into readable paragraphs: consecutive paragraphs merge until roughly 90 words or 600 characters, and a timestamp or pause marker starts a new paragraph. Interval and turn markers from § 4.2 are preserved. TXT, SRT, VTT, timed text, and JSON keep the unmerged segment boundaries. Line numbers stay in a left gutter via CSS counters. A single-speaker transcript has no `Speaker 1` heading.
 - Interjection/overlap: reserved class, v1 simply bold-italicize `//…//` when `overlap` segments get wrapped in `<span class=overlap>` (no "//"; separated: Informational note, colored hover) — final UX text decided with preview.
 - Pause dots inline as `( .)` styled muted.
 - `<meta charset>`; reflect dark/bright print.

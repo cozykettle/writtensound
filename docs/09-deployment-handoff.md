@@ -173,8 +173,53 @@ This is the durable list when chat context is lost.
 | 14 | Apply the same chat-template repair when loading the Qwen3 ForcedAligner so older aligner snapshots do not need a manual re-download | `backend/engines/qwen3/chat_template.py`, `backend/pipeline/align.py`, `backend/runner.py`, `docs/02`, `docs/04`, tests | done `0.3` |
 | 15 | Fix the Qwen3 runtime failure in the released image: pin the torch 2.9-compatible torchcodec, exact transformers, numpy 2 and Japanese/Korean splitters; pass PCM windows instead of file paths; slice the generated tokens; update the aligner to the 5.20.2 API | `pyproject.toml`, `uv.lock`, `backend/engines/qwen3/`, `backend/pipeline/align.py`, `backend/db/catalog.yaml`, docs 02/04, tests | done `0.3.1` |
 | 16 | Fail image builds when the Qwen runtime is broken: probe versions, Qwen imports, torchcodec WAV decode, nagisa/soynlp and pyannote in both app layers | `backend/engines/qwen3/runtime.py`, `Dockerfile`, docs 02/06/07 | done `0.3.1` |
+| 17 | Add a basic WrittenSound browser icon (speech bubble + sound bars) | `backend/static/favicon.svg`, `backend/templates/base.html`, `docs/05` | planned `0.4.0` |
+| 18 | Keep the queue live: consume the `queue` SSE event, show jobs added behind a running job, and order rows by insertion (newest first, status never sorts) | `backend/static/app.js`, `backend/runner.py`, `backend/jobs.py`, `backend/db.py`, `docs/03`, `docs/05`, tests | planned `0.4.0` |
+| 19 | Fix the faster-whisper 1.2.1 call shape (`temperature`, no `progress_hook`) | `backend/engines/fw/args.py`, `backend/engines/fw/adapter.py`, `docs/04`, tests | planned `0.4.0` |
+| 20 | Stop the HTML date from overlapping `duration`; write the real duration when whisper.cpp omits it | `backend/renderers/templates/transcript.html.j2`, `backend/renderers/__init__.py`, `backend/engines/wcpp/adapter.py`, `docs/04`, tests | planned `0.4.0` |
+| 21 | Reflow short whisper.cpp HTML paragraphs into readable blocks without losing interval/turn markers | `backend/renderers/__init__.py`, `docs/04`, tests | planned `0.4.0` |
+| 22 | Stop treating NeMo word times above 1000 s as milliseconds; document Parakeet's dropped-sentence limitation and the absence of an ASR precision flag | `backend/engines/nemo/adapter.py`, `docs/02`, `docs/04`, tests | planned `0.4.0` |
 
-Rows 12–14 ship in `v0.3.0`; rows 15–16 ship in `v0.3.1`; the `v0.2.0` image predates them.
+Rows 12–14 ship in `v0.3.0`; rows 15–16 ship in `v0.3.1`; rows 17–22 ship in
+`v0.4.0`. The CUDA target stays parked: no CUDA build or validation is part of
+`0.4.0`.
+
+### 0.4.0 plan (2026-10-28)
+
+`0.4.0` is a fix release driven by eight user reports. The source of truth for
+each item is the row above plus docs 02–05. Implementation order:
+
+1. **Docs first.** Record the root causes and the queue/HTML contracts here and
+   in docs 02–05 before editing code.
+2. **Icon.** A local SVG in `backend/static/` linked from `base.html`; no remote
+   asset, no font, no build step.
+3. **Queue live update and order.** The server already publishes a `queue` event
+   whenever a job is enqueued, but the client had no listener for it, so jobs
+   added behind a running job stayed invisible until they started. The client
+   will merge `queue` payloads into its job list. `queue` now carries full
+   `JobOut` objects instead of the unused minimal shape. Every `JobOut` gains
+   `seq` (SQLite rowid) and rows sort by `seq` descending, so the newest job is
+   on top and a running job sits below jobs added after it. Status is not a sort
+   key.
+4. **faster-whisper.** Version 1.2.1 takes singular `temperature` and has no
+   `progress_hook`; the adapter already detects the hook, so only the frozen
+   kwargs and the hard-coded version message change. Heuristic progress remains
+   and is logged.
+5. **HTML meta.** The date cell overflowed because the flex child kept its
+   min-content width. Add `min-width: 0` and `overflow-wrap: anywhere` to the
+   meta cells. whisper.cpp's JSON has no `result.duration`, so the adapter falls
+   back to `probe_media(prep.wav)`; duration is no longer `00:00:00`.
+6. **HTML reflow.** whisper.cpp emits progressively shorter segments late in a
+   file. Merge consecutive short paragraphs inside a turn (target ~90 words /
+   600 characters), breaking on timestamps, pauses, and speaker turns. This is a
+   renderer mitigation only; engine segments stay unchanged for captions/JSON.
+7. **NeMo.** Fix the seconds/milliseconds heuristic so words after 1000 s keep
+   their real times. Document that Parakeet can drop short utterances, that
+   NeMo-Speech.cpp splits long offline input automatically, and that the CLI has
+   no ASR precision flag. No engine substitution, no silent fallback.
+8. **Verify and release.** `ruff`, `mypy backend`, `pytest -m "not gpu"`, build
+   the standard image, run the demo smoke test, tag/publish `v0.4.0`, and record
+   the digest and verification in `docs/process-notes.md`.
 
 ### 0.2 implementation notes (2026-10-25)
 

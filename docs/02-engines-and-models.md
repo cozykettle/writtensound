@@ -61,6 +61,15 @@ Diarization models under this engine:
 
 NeMo runtime extras used internally: Silero VAD (bundled/gguf via the runtime), automatic punctuation/capitalization post-pass, endpointing. ITN and word-boosting are **out of scope in v1** (kept as documented hidden flags).
 
+Long audio: Parakeet TDT is offline-only and its card supports full attention to
+about 24 minutes (local attention to about 3 hours). NeMo-Speech.cpp automatically
+splits longer offline input at quiet points when it exceeds the encoder's
+positional budget. There is no ASR precision knob in the CLI; quality is set by
+the GGUF quantization. Parakeet occasionally drops short utterances even on CPU
+(upstream model behaviour, reported on the model discussion board), so a missing
+sentence is a model limitation, not a WrittenSound settings failure. Do not
+silently switch engines; use whisper.cpp when every sentence must be retained.
+
 ### 2.4 Qwen3-ASR (transformers)
 
 | id | repo | size | langs | word-ts | notes |

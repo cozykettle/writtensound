@@ -146,7 +146,7 @@ All JSON; all require auth when enabled; all return `application/json` except fi
 | 6 | `PUT /api/settings` body: subset of §2 keys, `hf_token: str|null` (**full value**) → 200 echo masked | validates: hf_token must match `^hf_[A-Za-z0-9]{30,}`; wrong → `invalid_settings` |
 | 7 | `POST /api/uploads` (multipart, field `file`; headers `X-Relative-Path`, `X-Client-Id`) → `{"upload_id": "…"}` | streams to `/data/jobs/staging/{upload_id}_{basename}`; SAFE filename (`re.sub(r'[^\w\-. ()\[\]]','_')`); whitelist by extension from catalog: `wav mp3 m4a ogg opus flac aac wma aiff mp4 mkv mov webm avi mpg mpeg wmv`; ffprobe check BEFORE returning 200; content >0 bytes; on reject → 415 `unsupported_media` (reason text). Big files fine (uvicorn spools to disk). |
 | 8 | `POST /api/jobs` body `{"items":[{"upload_id":str, "settings":JobSettings}, …]}` → `{"job_ids":[…]}` | settings validated **per item** (per-user per-item overrides); bulk response 400 with `items_errors: [{index, ApiError}]` partial acceptance **not allowed** (atomically all-or-nothing to avoid half-queues). |
-| 9 | `GET /api/jobs?status=&limit=&offset=` → `{"jobs":[JobOut]}` newest-first | `JobOut` = job row + `outputs_manifest: [ {name, size_ct, modified} ]` when present. |
+| 9 | `GET /api/jobs?status=&limit=&offset=` → `{"jobs":[JobOut]}` newest-first by `seq` | `JobOut` = job row + `seq` (SQLite insertion order) + `outputs_manifest: [ {name, size_ct, modified} ]` when present. `seq` is the stable queue order; it is not a user-editable field. |
 | 10 | `GET /api/jobs/{id}` → `JobOut` | includes `settings` JSON (client opens modal to re-edit when pending). |
 | 11 | `PATCH /api/jobs/{id}` body: partial JobSettings | only when `status == pending`; emits `job` SSE. |
 | 12 | `DELETE /api/jobs/{id}` | when pending → remove; when running → cancel first then remove (async; SSE events); outputs/logs retained per retention policy. |
@@ -176,7 +176,7 @@ Then incremental:
 | event | payload | frequency |
 |---|---|---|
 | `job` | Single `JobOut` (full replace for that row) | on any change (status/progress/stage/message) ≤2 Hz per job |
-| `queue` | minimal `[{job_id, status, progress}]` array for ordering | whenever order changes (rare; also emitted on boot) |
+| `queue` | `[JobOut…]` for `pending` and `running` jobs (full row objects, newest-first) | whenever the queue composition or order changes, and on boot |
 | `hardware` | full `HardwareStatus` | on refresh |
 | `model` | one `ModelState` row | when model download progresses (throttled ≤1 Hz), completes, or aborts |
 | `upload` | `{upload_id, state, error?}` | when an upload's staging state changes (server-side ffprobe verdict etc.) |
