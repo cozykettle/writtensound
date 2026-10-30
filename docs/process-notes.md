@@ -483,4 +483,33 @@ validated for this release.
   utterances. WrittenSound logs the limitation and documents whisper.cpp as the
   long-form alternative; it does not switch engines or silently degrade.
 
-Verification and release details are appended after the `0.4.0` build.
+## 0.4.0 release (2026-10-29)
+
+- **Version:** `pyproject.toml`, `backend/__init__.py`, and `uv.lock` report
+  `0.4.0`.
+- **Contents:** live `queue` SSE with full `JobOut` rows and `seq` ordering,
+  faster-whisper `temperature=0.0`, HTML meta wrapping and duration fallback,
+  whisper.cpp paragraph reflow (80 words / 560 characters), the NeMo
+  seconds/milliseconds fix, the local SVG favicon, and the documented Parakeet
+  dropped-utterance limitation. CUDA stays parked: no CUDA image was built or
+  validated. `v0.3.1` and earlier remain published and unchanged.
+- **Verification:** `uv run ruff check .`, `uv run mypy backend`, and
+  `uv run pytest -m "not gpu"` (77 tests) pass on the tagged source tree.
+  A source-server E2E run on port 8091 queued six jobs and received 12 `queue`
+  events; the largest snapshot carried six full rows in newest-first order.
+- **Local image:** `writtensound:standard` built to
+  `sha256:ab4268ad9694ffec8c69d7a58ac09bdc1f56fc1496203e6a1754892b1a728ad2`
+  (3.54 GB) with the Qwen runtime probe passing. The container ran the app as
+  UID 99, reached `healthy`, returned HTTP 200 from `/healthz`, served the
+  0.4.0 page and favicon, streamed a live newest-first queue with full rows,
+  and produced a 12 s demo transcript with `00:00:12` and the wrapping meta
+  grid.
+- **Image:** tag workflow run 40985079706 built in 9m45s and published
+  `latest`, `0.4.0`, `0.4`, and `sha-e6ae998` at digest
+  `sha256:c4e1dd4fc6763e49f287961da6aec6a8884754062c4d54c0fcd33ab3dfd6b2eb`.
+  Registry manifests for all four tags resolve to that digest by `crane`.
+  `docker pull` succeeded on this host (no TLS fallback needed). The published
+  image (3,534,988,499 bytes) re-ran the container smoke test successfully;
+  the app process runs as UID 99, the container reaches `healthy`, `/healthz`
+  returns HTTP 200, and both pinned engine binaries answer `--help`.
+- **GitHub release:** https://github.com/cozykettle/writtensound/releases/tag/v0.4.0

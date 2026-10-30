@@ -4,18 +4,23 @@ Use this file when continuing in a fresh agent session. It records the verified
 baseline, where to make changes, and the final Unraid path. Detailed behavior
 is still owned by docs 00-08.
 
-## 1. Current verified baseline (2026-10-27)
+## 1. Current verified baseline (2026-10-29)
 
-- Source gates: `ruff`, `mypy`, and `pytest -m "not gpu"` (68 tests) pass on
-  the `v0.3.1` tree.
-- `writtensound:standard` (0.3.1) was built and smoke-tested: 3.54 GB, CPU
-  torch `2.9.1+cpu`, both pinned engine binaries answer `--help`, the demo job
-  produced the default five output formats, and the container ran as UID/GID
-  99/100. The build-time Qwen probe reports `transformers 5.20.2`, `torch
-  2.9.1+cpu`, `torchaudio 2.9.1+cpu`, `torchcodec 0.9.1`, nagisa, soynlp,
-  pyannote.audio, and a torchcodec WAV decode. A real CPU smoke run inside the
-  image transcribed a 6.69 s clip with Qwen3-ASR-0.6B (exact text,
-  `language='en'`) and aligned 16 words with Qwen3-ForcedAligner-0.6B.
+- Source gates: `ruff`, `mypy`, and `pytest -m "not gpu"` (77 tests) pass on
+  the `v0.4.0` tree.
+- `writtensound:standard` (0.4.0) was built and smoke-tested locally: 3.54 GB,
+  build-time Qwen probe reports `transformers 5.20.2`, `torch 2.9.1+cpu`,
+  `torchaudio 2.9.1+cpu`, `torchcodec 0.9.1`, nagisa, soynlp, pyannote.audio,
+  and a torchcodec WAV decode; both pinned engine binaries answer `--help`; the
+  container runs the app as UID 99, reaches `healthy`, and returns HTTP 200
+  from `/healthz`. The smoke run checked the 0.4.0 version string, SVG favicon,
+  live `queue` SSE with full rows newest-first, a 12 s demo transcript with a
+  real `00:00:12` duration, and the wrapping meta grid.
+- `v0.4.0` is a fix release: live queue updates and insertion order (`seq`),
+  faster-whisper 1.2.1 `temperature`, HTML date wrapping, whisper.cpp duration
+  fallback and short-paragraph reflow, NeMo second/millisecond handling, the
+  documented Parakeet dropped-utterance limitation, and a local SVG favicon.
+  CUDA is parked: no CUDA image was built or validated for `0.4.0`.
 - `v0.3.1` fixes the released-image Qwen failure: torchcodec 0.9.1,
   transformers 5.20.2, numpy 2, nagisa/soynlp, the `libpython3.12` OS package,
   float32 PCM windows, token slicing past the prompt, the 5.20.2 aligner API
@@ -23,7 +28,8 @@ is still owned by docs 00-08.
   remain published and unchanged.
 - `v0.3.0` adds whisper.cpp special-token filtering and subword merging, and
   repairs Qwen3 `chat_template.jinja` for both ASR and the ForcedAligner.
-  Paragraph output still follows engine segment boundaries.
+  Paragraph output still follows engine segment boundaries (HTML reflow arrived
+  in `v0.4.0`).
 - `v0.2.0` adds NeMo word preservation, multi-cue captions, timed text,
   single-speaker label suppression, word-boundary interval markers, and the
   restored Add jobs engine/model selector. The compact UI overhaul is
@@ -173,12 +179,12 @@ This is the durable list when chat context is lost.
 | 14 | Apply the same chat-template repair when loading the Qwen3 ForcedAligner so older aligner snapshots do not need a manual re-download | `backend/engines/qwen3/chat_template.py`, `backend/pipeline/align.py`, `backend/runner.py`, `docs/02`, `docs/04`, tests | done `0.3` |
 | 15 | Fix the Qwen3 runtime failure in the released image: pin the torch 2.9-compatible torchcodec, exact transformers, numpy 2 and Japanese/Korean splitters; pass PCM windows instead of file paths; slice the generated tokens; update the aligner to the 5.20.2 API | `pyproject.toml`, `uv.lock`, `backend/engines/qwen3/`, `backend/pipeline/align.py`, `backend/db/catalog.yaml`, docs 02/04, tests | done `0.3.1` |
 | 16 | Fail image builds when the Qwen runtime is broken: probe versions, Qwen imports, torchcodec WAV decode, nagisa/soynlp and pyannote in both app layers | `backend/engines/qwen3/runtime.py`, `Dockerfile`, docs 02/06/07 | done `0.3.1` |
-| 17 | Add a basic WrittenSound browser icon (speech bubble + sound bars) | `backend/static/favicon.svg`, `backend/templates/base.html`, `docs/05` | planned `0.4.0` |
-| 18 | Keep the queue live: consume the `queue` SSE event, show jobs added behind a running job, and order rows by insertion (newest first, status never sorts) | `backend/static/app.js`, `backend/runner.py`, `backend/jobs.py`, `backend/db.py`, `docs/03`, `docs/05`, tests | planned `0.4.0` |
-| 19 | Fix the faster-whisper 1.2.1 call shape (`temperature`, no `progress_hook`) | `backend/engines/fw/args.py`, `backend/engines/fw/adapter.py`, `docs/04`, tests | planned `0.4.0` |
-| 20 | Stop the HTML date from overlapping `duration`; write the real duration when whisper.cpp omits it | `backend/renderers/templates/transcript.html.j2`, `backend/renderers/__init__.py`, `backend/engines/wcpp/adapter.py`, `docs/04`, tests | planned `0.4.0` |
-| 21 | Reflow short whisper.cpp HTML paragraphs into readable blocks without losing interval/turn markers | `backend/renderers/__init__.py`, `docs/04`, tests | planned `0.4.0` |
-| 22 | Stop treating NeMo word times above 1000 s as milliseconds; document Parakeet's dropped-sentence limitation and the absence of an ASR precision flag | `backend/engines/nemo/adapter.py`, `docs/02`, `docs/04`, tests | planned `0.4.0` |
+| 17 | Add a basic WrittenSound browser icon (speech bubble + sound bars) | `backend/static/favicon.svg`, `backend/templates/base.html`, `docs/05` | done `0.4.0` |
+| 18 | Keep the queue live: consume the `queue` SSE event, show jobs added behind a running job, and order rows by insertion (newest first, status never sorts) | `backend/static/app.js`, `backend/runner.py`, `backend/jobs.py`, `backend/db.py`, `docs/03`, `docs/05`, tests | done `0.4.0` |
+| 19 | Fix the faster-whisper 1.2.1 call shape (`temperature`, no `progress_hook`) | `backend/engines/fw/args.py`, `backend/engines/fw/adapter.py`, `docs/04`, tests | done `0.4.0` |
+| 20 | Stop the HTML date from overlapping `duration`; write the real duration when whisper.cpp omits it | `backend/renderers/templates/transcript.html.j2`, `backend/renderers/__init__.py`, `backend/engines/wcpp/adapter.py`, `docs/04`, tests | done `0.4.0` |
+| 21 | Reflow short whisper.cpp HTML paragraphs into readable blocks without losing interval/turn markers | `backend/renderers/__init__.py`, `docs/04`, tests | done `0.4.0` |
+| 22 | Stop treating NeMo word times above 1000 s as milliseconds; document Parakeet's dropped-sentence limitation and the absence of an ASR precision flag | `backend/engines/nemo/adapter.py`, `docs/02`, `docs/04`, tests | done `0.4.0` |
 
 Rows 12–14 ship in `v0.3.0`; rows 15–16 ship in `v0.3.1`; rows 17–22 ship in
 `v0.4.0`. The CUDA target stays parked: no CUDA build or validation is part of
@@ -283,6 +289,22 @@ probe. The source gates pass with 68 non-GPU tests, and the published image
 reproduced the exact CPU transcript plus 16 aligner words. Tag verification and
 the digest are in `docs/process-notes.md`; `v0.3.0` and `v0.2.0` remain
 published and unchanged.
+
+**0.4.0 release notes (2026-10-29).** `v0.4.0` is a fix release for eight
+reported issues. The queue consumes the `queue` SSE event (full `JobOut` rows
+for `pending` and `running` jobs) and orders rows by `seq` (SQLite rowid)
+descending, so a newly added job appears immediately on top and a running job
+sits below later additions. faster-whisper 1.2.1 is called with
+`temperature=0.0` (not `temperatures`) and keeps heuristic progress. HTML
+transcript metadata wraps long ISO dates; whisper.cpp duration falls back to
+`probe_media(prep.wav)`; short whisper.cpp paragraphs reflow to roughly 80
+words / 560 characters without losing timestamps, pauses, or speaker turns.
+NeMo word times above 1000 s stay in seconds, and Parakeet's dropped-utterance
+behaviour is documented as an upstream limitation with no CLI precision flag.
+A local SVG favicon ships. CUDA remains parked: no CUDA image was built or
+validated for this release. The source gates pass with 77 non-GPU tests. Tag
+verification and the published digest are in `docs/process-notes.md`;
+`v0.3.1` and earlier remain published and unchanged.
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.
