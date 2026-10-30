@@ -158,6 +158,17 @@ Unraid Docker templates point at a prebuilt image; they do not clone a repositor
   `clip.vtt`, `clip.timed.txt`, and `ir.json`, all downloadable as attachments.
   CUDA remains parked: no CUDA image was built or validated for this release.
 
+- The `v0.5.0` tag workflow built in 8m31s and published `latest`, `0.5.0`,
+  `0.5`, and `sha-21d59a6` at digest
+  `sha256:8222ab737895f5b0af778f6ab26d420d87c67cca0cfa3817475f87446026692b`;
+  all four registry manifests resolve to that digest. `docker pull` succeeded on
+  this host. The published image runs the app as UID 99, reaches `healthy`,
+  returns HTTP 200 from `/healthz`, serves `0.5.0`, passes
+  `python -m backend.engines.fw.runtime` (`av 18.0.0`), decodes the full supplied
+  MP3 through `decode_audio` (25,349,193 samples), and renders `html`, `txt`,
+  `srt`, `vtt`, `timed.txt`, and `ir.json` for a demo job. Both pinned engine
+  binaries answer `--help`.
+
 - The `v0.4.0` source tree fixes live queue updates and insertion order,
   faster-whisper 1.2.1's `temperature` keyword, HTML meta date wrapping,
   whisper.cpp's missing duration and short-paragraph reflow, and late NeMo word

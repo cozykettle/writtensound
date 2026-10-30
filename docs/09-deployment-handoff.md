@@ -185,10 +185,10 @@ This is the durable list when chat context is lost.
 | 20 | Stop the HTML date from overlapping `duration`; write the real duration when whisper.cpp omits it | `backend/renderers/templates/transcript.html.j2`, `backend/renderers/__init__.py`, `backend/engines/wcpp/adapter.py`, `docs/04`, tests | done `0.4.0` |
 | 21 | Reflow short whisper.cpp HTML paragraphs into readable blocks without losing interval/turn markers | `backend/renderers/__init__.py`, `docs/04`, tests | done `0.4.0` |
 | 22 | Stop treating NeMo word times above 1000 s as milliseconds; document Parakeet's dropped-sentence limitation and the absence of an ASR precision flag | `backend/engines/nemo/adapter.py`, `docs/02`, `docs/04`, tests | done `0.4.0` |
-| 23 | Fix faster-whisper 1.2.1 audio decode in the released image: `decode_audio()` passes `metadata_errors` to `av.open`, which PyAV 19 removed; pin PyAV 18 and probe the call in image builds | `pyproject.toml`, `uv.lock`, `backend/engines/fw/runtime.py`, `Dockerfile`, `docs/02`, `docs/04`, `docs/07`, tests | planned `0.5.0` |
-| 24 | Make queue updates fail-safe: return full `JobOut` rows from `POST /api/jobs`, upsert them immediately, subscribe before building the SSE snapshot, and reconcile active rows that disappear without a terminal event | `backend/routes/api.py`, `backend/static/upload.js`, `backend/static/app.js`, `docs/03`, `docs/05`, tests | planned `0.5.0` |
-| 25 | Replace full-filename output links with downloads grouped under the file name and clear per-format buttons (HTML, VTT, TXT, SRT, timed text, JSON) | `backend/static/app.js`, `backend/static/app.css`, `docs/05`, tests | planned `0.5.0` |
-| 26 | Fix speaker labels missing from HTML/TXT when an engine returns one long segment (NeMo): split turns at word-level speaker changes, not only at `segment.speaker` | `backend/renderers/__init__.py`, `docs/04`, tests | planned `0.5.0` |
+| 23 | Fix faster-whisper 1.2.1 audio decode in the released image: `decode_audio()` passes `metadata_errors` to `av.open`, which PyAV 19 removed; pin PyAV 18 and probe the call in image builds | `pyproject.toml`, `uv.lock`, `backend/engines/fw/runtime.py`, `Dockerfile`, `docs/02`, `docs/04`, `docs/07`, tests | done `0.5.0` |
+| 24 | Make queue updates fail-safe: return full `JobOut` rows from `POST /api/jobs`, upsert them immediately, subscribe before building the SSE snapshot, and reconcile active rows that disappear without a terminal event | `backend/routes/api.py`, `backend/static/upload.js`, `backend/static/app.js`, `docs/03`, `docs/05`, tests | done `0.5.0` |
+| 25 | Replace full-filename output links with downloads grouped under the file name and clear per-format buttons (HTML, VTT, TXT, SRT, timed text, JSON) | `backend/static/app.js`, `backend/static/app.css`, `docs/05`, tests | done `0.5.0` |
+| 26 | Fix speaker labels missing from HTML/TXT when an engine returns one long segment (NeMo): split turns at word-level speaker changes, not only at `segment.speaker` | `backend/renderers/__init__.py`, `docs/04`, tests | done `0.5.0` |
 
 Rows 12-14 ship in `v0.3.0`; rows 15-16 ship in `v0.3.1`; rows 17-22 ship in
 `v0.4.0`; rows 23-26 ship in `v0.5.0`. The CUDA target stays parked: no CUDA
@@ -342,6 +342,32 @@ and two UI gaps reported after `0.4.0`:
 The release uses the supplied 30-minute MP3 (kept untracked) and a trimmed copy
 for local engine tests. CUDA stays parked. Version bump, docs 02-07, tests, image
 build, tag workflow, and published-image verification follow the `0.4.0` path.
+
+**0.5.0 release notes (2026-10-30).** `v0.5.0` fixes the remaining
+faster-whisper crash and three output problems reported after `0.4.0`.
+faster-whisper 1.2.1's `decode_audio()` passes `metadata_errors` to `av.open`;
+PyAV 19 removed the keyword, and the engines extra had resolved `av 19.0.2`.
+The engines extra now pins `av==18.0.0`, and both app layers run
+`python -m backend.engines.fw.runtime`, which imports the engine and decodes a
+probe WAV through the exact `decode_audio()` path. `POST /api/jobs` returns the
+full new `JobOut` rows, the upload client upserts them immediately,
+`/api/events` subscribes before building its snapshot, and the client re-fetches
+an active row that disappears from a `queue` payload without a terminal `job`
+event. Outputs are grouped under the base file name with one button per format
+(`HTML`, `TXT`, `SRT`, `VTT`, timed text, `JSON`). TXT/HTML turns now split at
+word-level speaker changes, so NeMo's one-segment transcripts keep their
+`Speaker N` headings. The source gates pass with 84 non-GPU tests. The local
+`final-standard` image passes both runtime probes; inside it, faster-whisper's
+`decode_audio` decoded the supplied 26-minute MP3, and a 90 s clip transcribed
+with Whisper small on CPU into all six formats. The tag workflow built in 8m31s
+and published `latest`, `0.5.0`, `0.5`, and `sha-21d59a6` at digest
+`sha256:8222ab737895f5b0af778f6ab26d420d87c67cca0cfa3817475f87446026692b`;
+all four registry manifests resolve to that digest. The published image runs as
+UID 99, reaches `healthy`, serves `0.5.0`, passes the faster-whisper probe,
+decodes the full MP3, and renders all six outputs for a demo job. Tag
+verification is recorded in `docs/process-notes.md`; `v0.4.0` and earlier
+remain published and unchanged. CUDA remains parked: no CUDA image was built or
+validated for this release.
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.

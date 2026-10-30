@@ -565,3 +565,15 @@ CUDA stays parked.
   NeMo-shaped one-segment transcript with two word-level speakers rendered
   `Speaker 1`/`Speaker 2` blocks in TXT and both HTML headings. The container is
   healthy, `/healthz` returns 200, and the page reports `0.5.0`.
+
+- **Release verification (2026-10-30).** The `v0.5.0` tag workflow built in
+  8m31s and published `latest`, `0.5.0`, `0.5`, and `sha-21d59a6` at digest
+  `sha256:8222ab737895f5b0af778f6ab26d420d87c67cca0cfa3817475f87446026692b`.
+  `docker buildx imagetools inspect` resolves all four tags to that digest, and
+  `docker pull` succeeded on this host. The published image starts as UID 99,
+  reaches `healthy`, returns HTTP 200 from `/healthz`, serves `0.5.0`, and its
+  faster-whisper probe reports `av 18.0.0`. Inside the published image,
+  `decode_audio` decoded the full supplied MP3 (25,349,193 samples), and a demo
+  job produced `full.html`, `full.txt`, `full.srt`, `full.vtt`,
+  `full.timed.txt`, and `ir.json`. Both pinned engine binaries answer `--help`.
+  GitHub release: https://github.com/cozykettle/writtensound/releases/tag/v0.5.0
