@@ -75,13 +75,13 @@ model = WhisperModel(models_dir_for(model_id), device="cuda"|"cpu", compute_type
 seg_iter, info = model.transcribe(prep_wav_path,
         language=None if settings.language == "auto" else settings.language,
         word_timestamps=settings.word_timestamps, vad_filter=True,
-        vad_parameters=VadOptions(min_silence_duration_ms=500),
-        condition_on_previous_text=False, temperatures=(0.0,),
+        vad_parameters={"min_silence_duration_ms": 500},
+        condition_on_previous_text=False, temperature=0.0,
         initial_prompt=INITIAL_PROMPT_VERBATIM if settings.verbatim else None,
-        log_progress=True, progress_hook=hook)   # sequential (batched OFF in v1 by default)
+        log_progress=True)   # sequential (batched OFF in v1); 1.2.1 has no progress_hook
 ```
 
-`hook` = callable(frac, total) → `(frac/total, f"asr {frac}/{total}")`. `info.language[_probability]`, `info.duration`. Words include `prob` (0..1). No diarization integration.
+`info.language[_probability]`, `info.duration`. Words include `prob` (0..1). No diarization integration. The adapter derives progress from the number of emitted segments because 1.2.1 has no `progress_hook`; the job log records the heuristic.
 
 Options not exposed in UI v1: `beam_size=1` fixed default, `patience=1.0`, `suppress_tokens` default, `chunk_length=30`.
 `SPIKE S3` — faster-whisper 1.2.1 accepts the singular `temperature` (float
