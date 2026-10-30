@@ -91,6 +91,7 @@ dependencies = [
 [project.optional-dependencies]
 engines = [
   "faster-whisper==1.2.1",
+  "av==18.0.0",
   "ctranslate2>=4.5,<5",
   "transformers==5.20.2",
   "torch==2.9.*",
@@ -106,7 +107,7 @@ dev = ["pytest>=9", "pytest-asyncio", "httpx", "ruff>=0.14", "mypy>=1.18", "nump
 
 `uv sync --frozen` in image builds. The committed lock resolves `torch`/`torchaudio` from the PyTorch CPU index declared in `pyproject.toml`; the CUDA final layer replaces those two wheels with cu128 builds. Do not add `ffmpeg-python` or any Python ffmpeg wrapper — use the system `ffmpeg`/`ffprobe` binaries only.
 
-The Qwen pins are a set. `torchcodec 0.17` (pulled in by pyannote) requires torch 2.11, so it must stay at `0.9.1` for the torch 2.9 image; `transformers` is exact because the Qwen processor/aligner API and forced-alignment decoding changed inside the 5.x line. `nagisa` and `soynlp` are required for Japanese/Korean alignment. Both app layers run `python -m backend.engines.qwen3.runtime`, which verifies the versions, imports the Qwen stack and optional splitters, and decodes a probe WAV through torchcodec before the image can be published.
+The Qwen pins are a set. `torchcodec 0.17` (pulled in by pyannote) requires torch 2.11, so it must stay at `0.9.1` for the torch 2.9 image; `transformers` is exact because the Qwen processor/aligner API and forced-alignment decoding changed inside the 5.x line. `nagisa` and `soynlp` are required for Japanese/Korean alignment. Both app layers run `python -m backend.engines.qwen3.runtime`, which verifies the versions, imports the Qwen stack and optional splitters, and decodes a probe WAV through torchcodec before the image can be published. They also run `python -m backend.engines.fw.runtime`, which imports faster-whisper and opens a probe WAV through PyAV's `av.open(..., metadata_errors="ignore")`; PyAV 19 removed that keyword and breaks faster-whisper 1.2.1's `decode_audio()`, so the pin stays at `av==18.0.0` until faster-whisper updates.
 
 The app layers must also apt-install `libpython3.12`. torchcodec 0.9.1's FFmpeg-6 extension dlopens `libpython3.12.so.1.0`; `python3-venv` does not install that shared library on Ubuntu 24.04, and the build probe fails with `Could not load libtorchcodec` until the package is present. Keep it in both `app-standard` and `app-cuda` apt lists.
 

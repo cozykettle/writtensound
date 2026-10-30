@@ -87,7 +87,11 @@ Options not exposed in UI v1: `beam_size=1` fixed default, `patience=1.0`, `supp
 `SPIKE S3` — faster-whisper 1.2.1 accepts the singular `temperature` (float
 or list), not `temperatures`, and has no `progress_hook` parameter. The adapter
 passes `temperature=0.0` and uses segment-count heuristic progress when the
-hook is absent.
+hook is absent. faster-whisper's `decode_audio()` calls
+`av.open(..., metadata_errors="ignore")`; PyAV 19 removed that keyword, so the
+engines extra pins `av==18.0.0`. `backend/engines/fw/runtime.py` imports the
+engine and opens a probe WAV with that keyword; both image app layers run it, so
+an incompatible PyAV build fails the image instead of the first job.
 
 ### 3.2 whisper.cpp (subprocess `whisper-cli`)
 

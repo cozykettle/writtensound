@@ -30,3 +30,6 @@ samples/*.wav
 .env.local
 .DS_Store
 Thumbs.db
+
+# Local test media supplied by the user; never commit it.
+/30min-Of-Audio-To-Test-With.mp3

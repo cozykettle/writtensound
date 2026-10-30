@@ -185,10 +185,13 @@ This is the durable list when chat context is lost.
 | 20 | Stop the HTML date from overlapping `duration`; write the real duration when whisper.cpp omits it | `backend/renderers/templates/transcript.html.j2`, `backend/renderers/__init__.py`, `backend/engines/wcpp/adapter.py`, `docs/04`, tests | done `0.4.0` |
 | 21 | Reflow short whisper.cpp HTML paragraphs into readable blocks without losing interval/turn markers | `backend/renderers/__init__.py`, `docs/04`, tests | done `0.4.0` |
 | 22 | Stop treating NeMo word times above 1000 s as milliseconds; document Parakeet's dropped-sentence limitation and the absence of an ASR precision flag | `backend/engines/nemo/adapter.py`, `docs/02`, `docs/04`, tests | done `0.4.0` |
+| 23 | Fix faster-whisper 1.2.1 audio decode in the released image: `decode_audio()` passes `metadata_errors` to `av.open`, which PyAV 19 removed; pin PyAV 18 and probe the call in image builds | `pyproject.toml`, `uv.lock`, `backend/engines/fw/runtime.py`, `Dockerfile`, `docs/02`, `docs/04`, `docs/07`, tests | planned `0.5.0` |
+| 24 | Make queue updates fail-safe: return full `JobOut` rows from `POST /api/jobs`, upsert them immediately, subscribe before building the SSE snapshot, and reconcile active rows that disappear without a terminal event | `backend/routes/api.py`, `backend/static/upload.js`, `backend/static/app.js`, `docs/03`, `docs/05`, tests | planned `0.5.0` |
+| 25 | Replace full-filename output links with downloads grouped under the file name and clear per-format buttons (HTML, VTT, TXT, SRT, timed text, JSON) | `backend/static/app.js`, `backend/static/app.css`, `docs/05`, tests | planned `0.5.0` |
 
-Rows 12–14 ship in `v0.3.0`; rows 15–16 ship in `v0.3.1`; rows 17–22 ship in
-`v0.4.0`. The CUDA target stays parked: no CUDA build or validation is part of
-`0.4.0`.
+Rows 12-14 ship in `v0.3.0`; rows 15-16 ship in `v0.3.1`; rows 17-22 ship in
+`v0.4.0`; rows 23-25 ship in `v0.5.0`. The CUDA target stays parked: no CUDA
+build or validation is part of `0.4.0` or `0.5.0`.
 
 ### 0.4.0 plan (2026-10-28)
 
@@ -305,6 +308,33 @@ A local SVG favicon ships. CUDA remains parked: no CUDA image was built or
 validated for this release. The source gates pass with 77 non-GPU tests. Tag
 verification and the published digest are in `docs/process-notes.md`;
 `v0.3.1` and earlier remain published and unchanged.
+
+**0.5.0 plan (2026-10-30).** `0.5.0` fixes the remaining faster-whisper crash
+and two UI gaps reported after `0.4.0`:
+
+1. **faster-whisper decode.** faster-whisper 1.2.1 calls
+   `av.open(..., metadata_errors="ignore")` inside `decode_audio()`. PyAV 19
+   removed that keyword, so the pinned engine stack resolved `av 19.0.2` and
+   every transcription failed with `open() got an unexpected keyword argument
+   'metadata_errors'`. Pin `av==18.0.0` in the engines extra, add
+   `backend/engines/fw/runtime.py`, and run it in both app layers so a broken
+   PyAV build fails the image, not the first job.
+2. **Queue after a fast failure.** A job row was still only created by SSE.
+   `POST /api/jobs` will return the full new `JobOut` rows and the upload client
+   will upsert them before the toast; `/api/events` will subscribe before
+   building the snapshot so no event can fall into the connect gap; and the
+   client will re-fetch any `pending`/`running` row that vanishes from a `queue`
+   payload without a terminal `job` event. This heals the case where a job
+   failed while the stream was reconnecting, which previously required a page
+   refresh.
+3. **Downloads.** The detail row will group outputs by base file name and show
+   one clear button per format (`HTML`, `TXT`, `VTT`, `SRT`, timed text, `JSON`)
+   with the full filename and size in the tooltip, instead of one link per
+   complete filename.
+
+The release uses the supplied 30-minute MP3 (kept untracked) and a trimmed copy
+for local engine tests. CUDA stays parked. Version bump, docs 02-07, tests, image
+build, tag workflow, and published-image verification follow the `0.4.0` path.
 
 At the end of a change set, append the decision and verification date to
 `docs/process-notes.md`.

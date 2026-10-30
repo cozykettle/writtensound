@@ -513,3 +513,35 @@ validated for this release.
   the app process runs as UID 99, the container reaches `healthy`, `/healthz`
   returns HTTP 200, and both pinned engine binaries answer `--help`.
 - **GitHub release:** https://github.com/cozykettle/writtensound/releases/tag/v0.4.0
+
+## 0.5.0 plan and root causes (2026-10-30)
+
+`0.5.0` is a follow-up fix release for three reports after `0.4.0`. The durable
+change list lives in `docs/09-deployment-handoff.md` section 5 (rows 23-25);
+CUDA stays parked.
+
+- **faster-whisper failed with `metadata_errors`.** The `0.4.0` call-shape fix
+  reached transcription, then failed inside faster-whisper's audio decode.
+  faster-whisper 1.2.1 `decode_audio()` calls
+  `av.open(input_file, mode="r", metadata_errors="ignore")`. PyAV 19 removed the
+  `metadata_errors` keyword (`av 19.0.2` raises `open() got an unexpected
+  keyword argument 'metadata_errors'`), and the engines extra let uv resolve
+  `av 19.0.2` because faster-whisper only requires `av>=11`. PyAV 16, 17, and 18
+  still accept the keyword; 19 does not. The fix pins `av==18.0.0`, adds a
+  build-time/runtime probe, and keeps faster-whisper at 1.2.1.
+- **Queue missed a fast failure.** New rows were created only from SSE events,
+  and `/api/events` built its snapshot before subscribing to the hub, so events
+  published in that gap were lost; a job that failed while the stream was
+  reconnecting therefore never reached the client and needed a refresh.
+  `POST /api/jobs` now returns the full new `JobOut` rows, the client upserts
+  them immediately, the SSE snapshot is built after subscription, and the client
+  re-fetches any active row that disappears from a `queue` payload without a
+  terminal `job` event.
+- **Downloads were full filenames.** The detail row listed one link per complete
+  filename. It now groups outputs by base name and shows one clear format
+  button per file (`HTML`, `TXT`, `VTT`, `SRT`, timed text, `JSON`), with the
+  full name and size in the tooltip.
+- **Test media.** A 30-minute MP3 supplied by the user at the repository root is
+  used for local engine tests only. It stays untracked; trimmed copies go to the
+  temporary directory. E2E coverage uses the real MP3 with faster-whisper on CPU
+  in the built image, plus a trimmed clip for the full output/UI check.
