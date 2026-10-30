@@ -46,6 +46,11 @@ def test_static_assets_and_favicon(client: TestClient) -> None:
     assert js.status_code == 200
     assert "window.WS.app" in js.text
 
+    icon = client.get("/static/favicon.svg")
+    assert icon.status_code == 200
+    assert "image/svg+xml" in icon.headers["content-type"]
+    assert 'rel="icon"' in client.get("/").text
+
     assert client.get("/favicon.ico").status_code == 204
 
 
