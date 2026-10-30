@@ -108,6 +108,45 @@ def test_turn_grouping_keeps_one_heading_per_speaker_turn() -> None:
     assert turn.timestamp == "00:00:00"
 
 
+def test_one_long_segment_is_split_at_word_speaker_changes() -> None:
+    # NeMo returns one segment for the whole file with top-level words, so the
+    # segment-level speaker is only the majority label.  TXT/HTML must still
+    # split at word-level speaker changes like the caption renderers do.
+    segment = MergedSegment(
+        start=0.0,
+        end=6.0,
+        text="Hello there. General Kenobi.",
+        speaker=0,
+        words=[
+            Word(start=0.0, end=1.0, text="Hello", speaker=0),
+            Word(start=1.0, end=2.0, text="there.", speaker=0),
+            Word(start=3.0, end=4.0, text="General", speaker=1),
+            Word(start=4.0, end=6.0, text="Kenobi.", speaker=1),
+        ],
+    )
+    turns = build_turns([segment], [], settings())
+    assert [turn.speaker for turn in turns] == [0, 1]
+    assert [paragraph.text for paragraph in turns[0].paragraphs] == ["Hello there."]
+    assert [paragraph.text for paragraph in turns[1].paragraphs] == ["General Kenobi."]
+
+    text = render_txt([segment], [], settings())
+    assert "Speaker 1:\n[00:00:00] Hello there." in text
+    assert "Speaker 2:\n[00:00:03] General Kenobi." in text
+
+    html = render_html(
+        title="Interview",
+        segments=[segment],
+        pauses=[],
+        settings=settings(),
+        transcription=transcription(),
+        diar=diar_result(),
+        resolved={"asr_model": "demo-script", "device": "cpu", "compute": "cpu"},
+        version="0.5.0",
+    )
+    assert html.count("<h3>Speaker 1") == 1
+    assert html.count("<h3>Speaker 2") == 1
+
+
 def test_txt_has_speaker_blocks_timestamps_and_pause_marker() -> None:
     text = render_txt(merged_segments(), [Pause(start=2.0, seconds=8.0)], settings())
     assert "Speaker 1:" in text

@@ -11,7 +11,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ..jobs import JobSettings, TimestampsMode
-from ..pipeline.types import DiarResult, MergedSegment, Pause, TranscriptionResult
+from ..pipeline.types import DiarResult, MergedSegment, Pause, TranscriptionResult, Word
 
 TEMPLATE_DIR = Path(__file__).with_name("templates")
 
@@ -67,6 +67,47 @@ def _pause_marker(seconds: float) -> str:
 
 def _is_turn_start(previous: MergedSegment | None, segment: MergedSegment) -> bool:
     return previous is None or previous.speaker != segment.speaker
+
+
+def _split_speaker_runs(segment: MergedSegment) -> list[MergedSegment]:
+    """Split one engine segment into speaker-homogeneous runs.
+
+    NeMo returns the whole file as a single segment with top-level words, so
+    ``segment.speaker`` is only the majority label.  Caption renderers already
+    split at word-level speaker changes, but TXT/HTML grouped by
+    ``segment.speaker`` and therefore collapsed a two-speaker interview into
+    one unlabeled turn.  Splitting here keeps the IR untouched while giving
+    every renderer the same turn boundaries.
+    """
+    words = segment.words or []
+    speakers = {word.speaker for word in words if word.speaker is not None}
+    if len(speakers) < 2:
+        return [segment]
+    runs: list[list[Word]] = []
+    for word in words:
+        if runs and runs[-1][-1].speaker == word.speaker:
+            runs[-1].append(word)
+        else:
+            runs.append([word])
+    split: list[MergedSegment] = []
+    for run in runs:
+        text = " ".join(word.text.strip() for word in run if word.text.strip())
+        if not text:
+            continue
+        start = run[0].start if run[0].start is not None else segment.start
+        end = run[-1].end if run[-1].end is not None else segment.end
+        split.append(
+            MergedSegment(
+                start=start,
+                end=max(start, end),
+                text=text,
+                words=run,
+                language=segment.language,
+                speaker=run[0].speaker,
+                overlap=segment.overlap,
+            )
+        )
+    return split or [segment]
 
 
 def _paragraphs_for_segment(
@@ -166,34 +207,35 @@ def build_turns(
     consumed: set[int] = set()
     last_mark = 0.0
     previous: MergedSegment | None = None
-    for segment in segments:
-        turn_start = _is_turn_start(previous, segment)
-        if not turns or turns[-1].speaker != segment.speaker:
-            turns.append(
-                Turn(
-                    speaker=segment.speaker,
-                    start=segment.start,
-                    timestamp=None,
-                    paragraphs=[],
+    for raw_segment in segments:
+        for segment in _split_speaker_runs(raw_segment):
+            turn_start = _is_turn_start(previous, segment)
+            if not turns or turns[-1].speaker != segment.speaker:
+                turns.append(
+                    Turn(
+                        speaker=segment.speaker,
+                        start=segment.start,
+                        timestamp=None,
+                        paragraphs=[],
+                    )
                 )
+            paragraphs, last_mark = _paragraphs_for_segment(
+                segment,
+                settings,
+                turn_start=turn_start,
+                last_mark=last_mark,
             )
-        paragraphs, last_mark = _paragraphs_for_segment(
-            segment,
-            settings,
-            turn_start=turn_start,
-            last_mark=last_mark,
-        )
-        if paragraphs:
-            pause = _pause_for(segment, pauses, consumed)
-            if pause:
-                paragraphs[-1].pause = pause
-            if turns[-1].timestamp is None and segment.speaker is not None:
-                turns[-1].timestamp = next(
-                    (paragraph.timestamp for paragraph in paragraphs if paragraph.timestamp),
-                    None,
-                )
-            turns[-1].paragraphs.extend(paragraphs)
-        previous = segment
+            if paragraphs:
+                pause = _pause_for(segment, pauses, consumed)
+                if pause:
+                    paragraphs[-1].pause = pause
+                if turns[-1].timestamp is None and segment.speaker is not None:
+                    turns[-1].timestamp = next(
+                        (paragraph.timestamp for paragraph in paragraphs if paragraph.timestamp),
+                        None,
+                    )
+                turns[-1].paragraphs.extend(paragraphs)
+            previous = segment
     if not turns:
         turns.append(Turn(speaker=None, start=0.0, timestamp=None, paragraphs=[]))
     return turns
