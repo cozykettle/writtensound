@@ -1,4 +1,4 @@
-"""Frozen faster-whisper call shape (Phase A SPIKE S3 pending)."""
+"""Frozen faster-whisper call shape (SPIKE S3: 1.2.1 uses singular `temperature`)."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def transcribe_kwargs(*, language: str, word_timestamps: bool, verbatim: bool, a
         "vad_filter": True,
         "vad_parameters": {"min_silence_duration_ms": VAD_MIN_SILENCE_MS},
         "condition_on_previous_text": False,
-        "temperatures": (0.0,),
+        "temperature": 0.0,
         "initial_prompt": INITIAL_PROMPT_VERBATIM if verbatim else None,
         "log_progress": True,
     }

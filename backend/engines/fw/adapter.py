@@ -70,7 +70,10 @@ class FasterWhisperAdapter:
             kwargs["progress_hook"] = hook
         else:
             log_path.parent.mkdir(parents=True, exist_ok=True)
-            log_path.write_text("faster-whisper 1.2.1 has no progress_hook; using heuristic progress.\n", encoding="utf-8")
+            log_path.write_text(
+                f"faster-whisper {args.FASTER_WHISPER_VERSION} has no progress_hook; using heuristic progress.\n",
+                encoding="utf-8",
+            )
 
         try:
             segment_iter, info = whisper.transcribe(str(audio_path), **kwargs)
