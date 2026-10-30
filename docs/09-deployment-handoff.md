@@ -210,8 +210,8 @@ each item is the row above plus docs 02–05. Implementation order:
    meta cells. whisper.cpp's JSON has no `result.duration`, so the adapter falls
    back to `probe_media(prep.wav)`; duration is no longer `00:00:00`.
 6. **HTML reflow.** whisper.cpp emits progressively shorter segments late in a
-   file. Merge consecutive short paragraphs inside a turn (target ~90 words /
-   600 characters), breaking on timestamps, pauses, and speaker turns. This is a
+   file. Merge consecutive short paragraphs inside a turn (target ~80 words /
+   560 characters), breaking on timestamps, pauses, and speaker turns. This is a
    renderer mitigation only; engine segments stay unchanged for captions/JSON.
 7. **NeMo.** Fix the seconds/milliseconds heuristic so words after 1000 s keep
    their real times. Document that Parakeet can drop short utterances, that

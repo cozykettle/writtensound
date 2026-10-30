@@ -6,6 +6,7 @@ from pathlib import Path
 from backend.jobs import JobSettings
 from backend.pipeline.types import DiarResult, DiarTurn, MergedSegment, Pause, TranscriptionResult, Word
 from backend.renderers import (
+    _reflow_html_turns,
     build_turns,
     render_all,
     render_html,
@@ -161,6 +162,26 @@ def test_html_reflows_short_engine_segments_without_losing_text() -> None:
     assert html.count("<p>") == 1
     assert "word0 alpha beta gamma word1 alpha beta gamma" in html
     assert "word11 alpha beta gamma" in html
+
+
+def test_html_reflow_caps_paragraph_size_and_keeps_pauses_at_the_end() -> None:
+    segments = [
+        MergedSegment(start=float(index * 2), end=float(index * 2 + 1), text=f"a{index} b{index} c{index}", speaker=None)
+        for index in range(40)
+    ]
+    pauses = [Pause(start=19.0, seconds=3.0)]
+
+    turns = _reflow_html_turns(build_turns(segments, pauses, settings(timestamps_mode="none")))
+    paragraphs = turns[0].paragraphs
+
+    assert len(paragraphs) >= 2
+    for paragraph in paragraphs:
+        assert len(paragraph.text.split()) <= 80
+    paused = [paragraph for paragraph in paragraphs if paragraph.pause]
+    assert len(paused) == 1
+    assert paused[0].pause == "(. . .)"
+    assert paused[0].text.endswith("c9")
+    assert paragraphs[-1].text.endswith("c39")
 
 
 def test_html_reflow_keeps_interval_markers_as_paragraph_starts() -> None:

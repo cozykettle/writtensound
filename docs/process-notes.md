@@ -467,7 +467,7 @@ validated for this release.
 - **Shrinking whisper.cpp lines are engine-driven.** The attached repro has
   early paragraphs of ~20 words and late paragraphs of 2–5 words because the
   engine emits progressively smaller segments. HTML now merges consecutive
-  paragraphs inside a turn up to ~90 words / 600 characters, breaking on a
+  paragraphs inside a turn up to ~80 words / 560 characters, breaking on a
   timestamp, a pause marker, or a speaker turn. TXT/SRT/VTT/timed/JSON keep the
   original boundaries so captions do not become long cues.
 - **NeMo late-word timestamps were mangled.** `_times()` divided by 1000 when

@@ -236,14 +236,17 @@ def _reflow_html_turns(turns: list[Turn]) -> list[Turn]:
             if not text:
                 continue
             current = paragraphs[-1] if paragraphs else None
+            fits = current is not None and (
+                len(current.text.split()) + len(text.split()) <= target_words
+                and len(current.text) + 1 + len(text) <= target_chars
+            )
             can_merge = (
                 current is not None
                 and current.pause is None
                 and paragraph.timestamp is None
                 and paragraph.pause is None
                 and paragraph.overlap == current.overlap
-                and len(current.text.split()) < target_words
-                and len(current.text) < target_chars
+                and fits
             )
             if can_merge and current is not None:
                 current.text = f"{current.text.rstrip()} {text}"
