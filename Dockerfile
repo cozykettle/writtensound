@@ -199,7 +199,8 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     && sed -i 's/\r$//' /app/entrypoint.sh \
     && chmod +x /app/entrypoint.sh \
     && /app/.venv/bin/python -c "import backend" \
-    && /app/.venv/bin/python -m backend.engines.qwen3.runtime
+    && /app/.venv/bin/python -m backend.engines.qwen3.runtime \
+    && /app/.venv/bin/python -m backend.engines.fw.runtime
 
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn-runtime-ubuntu24.04 AS app-cuda
 
@@ -245,7 +246,8 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     && sed -i 's/\r$//' /app/entrypoint.sh \
     && chmod +x /app/entrypoint.sh \
     && /app/.venv/bin/python -c "import backend" \
-    && /app/.venv/bin/python -m backend.engines.qwen3.runtime
+    && /app/.venv/bin/python -m backend.engines.qwen3.runtime \
+    && /app/.venv/bin/python -m backend.engines.fw.runtime
 
 # ---------------------------------------------------------------------------
 # Final targets

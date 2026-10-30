@@ -1,6 +1,6 @@
 [project]
 name = "writtensound"
-version = "0.4.0"
+version = "0.5.0"
 description = "Self-hosted, local-first speech-to-text with a multi-engine model catalog."
 readme = "README.md"
 license = "MIT"
@@ -21,6 +21,9 @@ dependencies = [
 # test suite can run on a laptop without multi-gigabyte wheels.
 engines = [
   "faster-whisper==1.2.1",
+  # faster-whisper 1.2.1 decode_audio() passes metadata_errors= to av.open();
+  # PyAV 19 removed that keyword. Keep the last compatible major pinned.
+  "av==18.0.0",
   "ctranslate2>=4.5,<5",
   # Qwen3-ASR/ForcedAligner are pinned as a set: the aligner API and the
   # torchcodec/torch ABI changed inside the 5.x line. 0.9.1 is the last
