@@ -140,7 +140,23 @@ Unraid Docker templates point at a prebuilt image; they do not clone a repositor
 | Data dir on disk full | staging cleanup service + retention; consider `WS_DATA_DIR` on bigger share |
 | pyannote bad token | settings page token save; retry download; check two-repo acceptance |
 
-## 8. Verification status (2026-10-29)
+## 8. Verification status (2026-10-30)
+
+- The `v0.5.0` source tree pins `av==18.0.0` for faster-whisper 1.2.1, whose
+  `decode_audio()` passes `metadata_errors` to `av.open` (removed in PyAV 19);
+  both app layers run `python -m backend.engines.fw.runtime` before the image can
+  be published. `POST /api/jobs` returns the full new `JobOut` rows, the upload
+  client upserts them immediately, `/api/events` subscribes before building the
+  snapshot, and the client re-fetches an active row that vanishes from a `queue`
+  payload without a terminal `job` event. Downloads are grouped under the base
+  name with one button per format. TXT/HTML turns now split at word-level
+  speaker changes, restoring NeMo speaker headings. The source gates pass with
+  84 non-GPU tests. The local `final-standard` image (3.54 GB) passes both
+  runtime probes; inside the container, faster-whisper's `decode_audio` decoded
+  the supplied 26-minute MP3 (25,349,193 samples), and a 90 s clip transcribed
+  with Whisper small on CPU and produced `clip.html`, `clip.txt`, `clip.srt`,
+  `clip.vtt`, `clip.timed.txt`, and `ir.json`, all downloadable as attachments.
+  CUDA remains parked: no CUDA image was built or validated for this release.
 
 - The `v0.4.0` source tree fixes live queue updates and insertion order,
   faster-whisper 1.2.1's `temperature` keyword, HTML meta date wrapping,

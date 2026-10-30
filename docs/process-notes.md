@@ -541,7 +541,27 @@ CUDA stays parked.
   filename. It now groups outputs by base name and shows one clear format
   button per file (`HTML`, `TXT`, `VTT`, `SRT`, timed text, `JSON`), with the
   full name and size in the tooltip.
+- **NeMo speaker labels were missing from HTML/TXT.** NeMo returns the whole
+  file as one segment with top-level words, so `segment.speaker` is only the
+  majority label (usually one speaker for the whole interview). Timed text,
+  SRT, and VTT already split cues at word-level speaker changes, which is why
+  only those formats showed `Speaker N`. TXT/HTML grouped turns by
+  `segment.speaker`, collapsing the file into a single unlabeled turn. The turn
+  builder now splits each segment into speaker-homogeneous word runs before
+  grouping, so all formats share the same boundaries.
 - **Test media.** A 30-minute MP3 supplied by the user at the repository root is
   used for local engine tests only. It stays untracked; trimmed copies go to the
   temporary directory. E2E coverage uses the real MP3 with faster-whisper on CPU
   in the built image, plus a trimmed clip for the full output/UI check.
+- **Local verification (2026-10-30).** `uv run ruff check .`, `uv run mypy
+  backend`, and `uv run pytest -m "not gpu"` pass with 84 tests. The local
+  `final-standard` image (3.54 GB) passes both build-time probes; its
+  faster-whisper probe reports `av 18.0.0`. Inside the running container,
+  `faster_whisper.audio.decode_audio` decoded the full supplied MP3 (25,349,193
+  samples), which is the exact call that raised `metadata_errors` in `0.4.0`. A
+  90 s trimmed clip transcribed with Whisper small on CPU in 14.43 s of worker
+  time and produced `clip.html`, `clip.txt`, `clip.srt`, `clip.vtt`,
+  `clip.timed.txt`, and `ir.json`; all six download as attachments. A
+  NeMo-shaped one-segment transcript with two word-level speakers rendered
+  `Speaker 1`/`Speaker 2` blocks in TXT and both HTML headings. The container is
+  healthy, `/healthz` returns 200, and the page reports `0.5.0`.

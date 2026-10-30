@@ -188,9 +188,10 @@ This is the durable list when chat context is lost.
 | 23 | Fix faster-whisper 1.2.1 audio decode in the released image: `decode_audio()` passes `metadata_errors` to `av.open`, which PyAV 19 removed; pin PyAV 18 and probe the call in image builds | `pyproject.toml`, `uv.lock`, `backend/engines/fw/runtime.py`, `Dockerfile`, `docs/02`, `docs/04`, `docs/07`, tests | planned `0.5.0` |
 | 24 | Make queue updates fail-safe: return full `JobOut` rows from `POST /api/jobs`, upsert them immediately, subscribe before building the SSE snapshot, and reconcile active rows that disappear without a terminal event | `backend/routes/api.py`, `backend/static/upload.js`, `backend/static/app.js`, `docs/03`, `docs/05`, tests | planned `0.5.0` |
 | 25 | Replace full-filename output links with downloads grouped under the file name and clear per-format buttons (HTML, VTT, TXT, SRT, timed text, JSON) | `backend/static/app.js`, `backend/static/app.css`, `docs/05`, tests | planned `0.5.0` |
+| 26 | Fix speaker labels missing from HTML/TXT when an engine returns one long segment (NeMo): split turns at word-level speaker changes, not only at `segment.speaker` | `backend/renderers/__init__.py`, `docs/04`, tests | planned `0.5.0` |
 
 Rows 12-14 ship in `v0.3.0`; rows 15-16 ship in `v0.3.1`; rows 17-22 ship in
-`v0.4.0`; rows 23-25 ship in `v0.5.0`. The CUDA target stays parked: no CUDA
+`v0.4.0`; rows 23-26 ship in `v0.5.0`. The CUDA target stays parked: no CUDA
 build or validation is part of `0.4.0` or `0.5.0`.
 
 ### 0.4.0 plan (2026-10-28)
@@ -331,6 +332,12 @@ and two UI gaps reported after `0.4.0`:
    one clear button per format (`HTML`, `TXT`, `VTT`, `SRT`, timed text, `JSON`)
    with the full filename and size in the tooltip, instead of one link per
    complete filename.
+4. **NeMo speaker labels in HTML/TXT.** NeMo returns the whole file as one
+   segment with top-level words, so `segment.speaker` is only the majority
+   label. Timed text/SRT/VTT already split cues at word-level speaker changes;
+   TXT and HTML grouped turns by `segment.speaker` and lost the labels. The
+   turn builder now splits a segment into speaker-homogeneous runs first, so
+   all formats show the same `Speaker N` boundaries.
 
 The release uses the supplied 30-minute MP3 (kept untracked) and a trimmed copy
 for local engine tests. CUDA stays parked. Version bump, docs 02-07, tests, image

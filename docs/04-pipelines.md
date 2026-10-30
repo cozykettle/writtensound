@@ -247,8 +247,9 @@ for each segment:
 map labels: label(i) = f"Speaker {i+1}" (arrival order = speaker index ascending by first start)
 ```
 
-- turn gaps: optional `pauses` pass — between consecutive words `w1`,`w2`, when `w2.start - w1.end >= pause_min_s` a `Pause(start=gap_start, seconds=gap_len)` is appended to IR field `pauses: [Pause]` (consumed by TXT/HTML renderers).
+- turn gaps: optional `pauses` pass - between consecutive words `w1`,`w2`, when `w2.start - w1.end >= pause_min_s` a `Pause(start=gap_start, seconds=gap_len)` is appended to IR field `pauses: [Pause]` (consumed by TXT/HTML renderers).
 - Whole segment without word times: per-segment assignment rule mid-in-turn; merge diar turns first, then segments; segment texts concatenated when all-words-of-only-one-turn.
+- Turn grouping in TXT/HTML (`build_turns`): before grouping, a segment whose words carry more than one speaker is split into consecutive speaker-homogeneous runs (text rebuilt from the words, times from the first/last word). This matters for NeMo, which returns one segment for the whole file with top-level words: `segment.speaker` is only the majority label, so grouping on it alone dropped every speaker heading. JSON keeps the original engine segment boundaries and the majority `speaker`; captions already split at word-level speaker changes.
 
 ### 4.2 Timestamps rules by `timestamps_mode`
 
