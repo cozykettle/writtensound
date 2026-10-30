@@ -41,6 +41,23 @@ def test_upload_validation_and_relative_path(client: TestClient, wav_file: bytes
     assert empty.json()["code"] == "unsupported_media"
 
 
+def test_queue_response_carries_full_rows(client: TestClient, wav_file: bytes) -> None:
+    upload_id = upload_wav(client, wav_file, name="quick-failure.wav")
+    response = client.post(
+        "/api/jobs",
+        json={"items": [{"upload_id": upload_id, "settings": demo_settings()}]},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert len(payload["job_ids"]) == len(payload["jobs"]) == 1
+    job = payload["jobs"][0]
+    assert job["id"] == payload["job_ids"][0]
+    assert job["title"] == "quick-failure.wav"
+    assert job["seq"] > 0
+    assert job["status"] in {"pending", "running", "succeeded", "failed"}
+    assert job["settings"]["asr_model_id"] == "demo-script"
+
+
 def test_demo_job_end_to_end_outputs_and_logs(client: TestClient, wav_file: bytes) -> None:
     job_id = queue_one(client, wav_file)
     data = wait_for_terminal(client, job_id)

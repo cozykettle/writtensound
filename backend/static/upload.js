@@ -275,6 +275,9 @@
         throw new Error(detail ? `${message} ${detail.map((row) => row.error?.message || "").join(" ")}`.trim() : message);
       }
       const count = (payload && payload.job_ids && payload.job_ids.length) || ready.length;
+      // The rows are rendered before the toast: a job can fail within a second,
+      // and a missed SSE event must not leave the queue empty.
+      window.WS.app?.ingestJobs(payload && payload.jobs);
       window.WS.app?.toast(`${count} job${count === 1 ? "" : "s"} added to the queue.`, "ok");
       items.length = 0;
       seen.clear();

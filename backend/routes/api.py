@@ -149,7 +149,12 @@ async def create_jobs(request: Request, payload: JobCreateRequest) -> JSONRespon
     if not payload.items:
         raise ApiError("invalid_settings", "Add at least one file to the queue.")
     job_ids = await _create_jobs(state, payload.items)
-    return JSONResponse({"job_ids": job_ids})
+    jobs = [
+        job_out(row, state.paths.jobs)
+        for row in (state.jobs.get(job_id) for job_id in job_ids)
+        if row is not None
+    ]
+    return JSONResponse({"job_ids": job_ids, "jobs": jobs})
 
 
 @router.get("/api/jobs")
@@ -346,12 +351,17 @@ async def maintenance_cleanup(request: Request) -> JSONResponse:
 @router.get("/api/events")
 async def events(request: Request) -> StreamingResponse:
     state = get_state(request)
-    snapshot = state.snapshot()
+    # Subscribe before reading the snapshot: anything published while the
+    # snapshot is being built lands in this queue and is delivered right after
+    # it, instead of falling into the gap between "initial state" and "live".
+    queue = state.hub.subscribe()
+    try:
+        snapshot = state.snapshot()
+    except Exception:
+        state.hub.unsubscribe(queue)
+        raise
 
     async def stream() -> Any:
-        # Subscribe before yielding the snapshot so no event can slip through
-        # the gap between "initial state" and "live updates".
-        queue = state.hub.subscribe()
         payload = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":"))
         try:
             yield f"event: snapshot\ndata: {payload}\n\n"

@@ -287,6 +287,50 @@
     return row;
   }
 
+  function outputFormat(name) {
+    const lower = name.toLowerCase();
+    const checks = [
+      [".timed.txt", "Timed text", 4],
+      [".html", "HTML", 0],
+      [".txt", "TXT", 1],
+      [".srt", "SRT", 2],
+      [".vtt", "VTT", 3],
+      [".json", "JSON", 5],
+    ];
+    for (const [suffix, label, rank] of checks) {
+      if (!lower.endsWith(suffix)) continue;
+      // ir.json is job-level, not <base>.json; group it with the transcript.
+      const base = suffix === ".json" && lower === "ir.json" ? null : name.slice(0, -suffix.length);
+      return { label, rank, base };
+    }
+    const dot = lower.lastIndexOf(".");
+    return {
+      label: dot > 0 ? name.slice(dot + 1).toUpperCase() : "File",
+      rank: 6,
+      base: dot > 0 ? name.slice(0, dot) : name,
+    };
+  }
+
+  function outputGroups(job) {
+    const settings = job.settings || {};
+    const fallback = String(
+      settings.out_basename
+        || String(job.title || "").replace(/\.[^.]+$/, "")
+        || "transcript"
+    );
+    const groups = new Map();
+    for (const output of job.outputs_manifest || []) {
+      const format = outputFormat(output.name);
+      const base = format.base || fallback;
+      if (!groups.has(base)) groups.set(base, []);
+      groups.get(base).push({ ...output, label: format.label, rank: format.rank });
+    }
+    return Array.from(groups, ([base, files]) => ({
+      base,
+      files: files.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name)),
+    })).sort((a, b) => a.base.localeCompare(b.base));
+  }
+
   function buildDetailRow(job) {
     const row = el("tr", "detail-row");
     row.dataset.detailFor = job.id;
@@ -297,16 +341,23 @@
     const left = el("div");
     left.append(el("h4", "", "Outputs"));
     if (job.outputs_manifest && job.outputs_manifest.length) {
-      const list = el("ul", "output-list");
-      for (const output of job.outputs_manifest) {
-        const item = el("li");
-        const link = el("a", "", output.name);
-        link.href = `/api/jobs/${encodeURIComponent(job.id)}/outputs/${encodeURIComponent(output.name)}`;
-        link.title = `${formatBytes(output.size_ct)} · download`;
-        item.append(link);
-        list.append(item);
+      const groups = el("div", "output-groups");
+      for (const group of outputGroups(job)) {
+        const block = el("div", "output-group");
+        block.append(el("div", "output-group-name", group.base));
+        const buttons = el("div", "output-buttons");
+        for (const file of group.files) {
+          const link = el("a", "output-btn", file.label);
+          link.href = `/api/jobs/${encodeURIComponent(job.id)}/outputs/${encodeURIComponent(file.name)}`;
+          link.setAttribute("download", file.name);
+          link.title = `${file.name} · ${formatBytes(file.size_ct)} · download`;
+          link.setAttribute("aria-label", `Download ${file.label}: ${file.name}`);
+          buttons.append(link);
+        }
+        block.append(buttons);
+        groups.append(block);
       }
-      left.append(list);
+      left.append(groups);
     } else {
       left.append(el("p", "hint", job.status === "succeeded" ? "The manifest is empty." : "Outputs appear when rendering finishes."));
     }
@@ -408,6 +459,42 @@
     const index = state.jobs.findIndex((item) => item.id === job.id);
     if (index >= 0) state.jobs[index] = job;
     else state.jobs.push(job);
+  }
+
+  function ingestJobs(jobs) {
+    if (!Array.isArray(jobs) || !jobs.length) return;
+    for (const job of jobs) upsertJob(job);
+    renderQueue();
+  }
+
+  const refreshing = new Set();
+
+  // A pending/running row that drops out of a `queue` payload without a
+  // terminal `job` event means we missed the outcome (typically while the
+  // EventSource was reconnecting). Ask the API for the real row; a 404 means
+  // the job was deleted in the meantime.
+  async function refreshJob(jobId) {
+    if (refreshing.has(jobId)) return;
+    refreshing.add(jobId);
+    let changed = false;
+    try {
+      const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (response.status === 404) {
+        state.jobs = state.jobs.filter((item) => item.id !== jobId);
+        state.expanded.delete(jobId);
+        changed = true;
+      } else if (response.ok) {
+        upsertJob(await response.json());
+        changed = true;
+      }
+    } catch (error) {
+      console.error("job refresh failed", error);
+    } finally {
+      refreshing.delete(jobId);
+      if (changed) renderQueue();
+    }
   }
 
   /* ------------------------------------------------------------- engines */
@@ -906,8 +993,14 @@
       try {
         const jobs = JSON.parse(event.data);
         if (!Array.isArray(jobs)) return;
+        const active = new Set(jobs.map((job) => job.id));
         for (const job of jobs) upsertJob(job);
         renderQueue();
+        for (const job of state.jobs.slice()) {
+          if (!active.has(job.id) && (job.status === "pending" || job.status === "running")) {
+            refreshJob(job.id);
+          }
+        }
       } catch (error) {
         console.error("bad queue event", error);
       }
@@ -1014,5 +1107,5 @@
     init();
   }
 
-  window.WS.app = { toast, renderQueue, collectSettings, openJobEditor, closeModal };
+  window.WS.app = { toast, renderQueue, ingestJobs, collectSettings, openJobEditor, closeModal };
 })();

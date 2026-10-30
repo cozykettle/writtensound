@@ -39,6 +39,31 @@ async def test_event_hub_publishes_cross_thread() -> None:
 
 
 @pytest.mark.asyncio
+async def test_sse_subscribes_before_snapshot() -> None:
+    hub = EventHub()
+    hub.bind()
+
+    def snapshot() -> dict:
+        # Published while the snapshot is being built: a subscriber attached
+        # after this point would drop it and the client would never see it.
+        hub.publish("job", {"id": "late", "status": "failed"})
+        return {"jobs": [], "hardware": {}}
+
+    state = SimpleNamespace(hub=hub, snapshot=snapshot)
+    response = await events_endpoint(make_request(state))
+    body = response.body_iterator
+    try:
+        first = await anext(body)
+        assert first.startswith("event: snapshot\ndata: ")
+        second = await asyncio.wait_for(anext(body), timeout=1.0)
+        assert second.startswith("event: job\ndata: ")
+        assert json.loads(second.split("data: ", 1)[1]) == {"id": "late", "status": "failed"}
+    finally:
+        await body.aclose()
+    assert hub.subscriber_count == 0
+
+
+@pytest.mark.asyncio
 async def test_sse_snapshot_then_live_event() -> None:
     hub = EventHub()
     hub.bind()
